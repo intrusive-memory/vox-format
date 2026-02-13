@@ -1,0 +1,49 @@
+{
+  "": {
+    "dependencies": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxFormat.d",
+    "object": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxFormat.o",
+    "swift-dependencies": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/master.swiftdeps"
+  },
+  "/Users/stovak/Projects/vox-format/implementations/swift/Sources/VoxFormat/VoxError.swift": {
+    "object": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxError.swift.o",
+    "swiftmodule": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxError~partial.swiftmodule",
+    "swift-dependencies": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxError.swiftdeps",
+    "diagnostics": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxError.dia"
+  },
+  "/Users/stovak/Projects/vox-format/implementations/swift/Sources/VoxFormat/VoxFile.swift": {
+    "object": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxFile.swift.o",
+    "swiftmodule": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxFile~partial.swiftmodule",
+    "swift-dependencies": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxFile.swiftdeps",
+    "diagnostics": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxFile.dia"
+  },
+  "/Users/stovak/Projects/vox-format/implementations/swift/Sources/VoxFormat/VoxFormat.swift": {
+    "object": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxFormat.swift.o",
+    "swiftmodule": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxFormat~partial.swiftmodule",
+    "swift-dependencies": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxFormat.swiftdeps",
+    "diagnostics": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxFormat.dia"
+  },
+  "/Users/stovak/Projects/vox-format/implementations/swift/Sources/VoxFormat/VoxManifest.swift": {
+    "object": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxManifest.swift.o",
+    "swiftmodule": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxManifest~partial.swiftmodule",
+    "swift-dependencies": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxManifest.swiftdeps",
+    "diagnostics": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxManifest.dia"
+  },
+  "/Users/stovak/Projects/vox-format/implementations/swift/Sources/VoxFormat/VoxReader.swift": {
+    "object": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxReader.swift.o",
+    "swiftmodule": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxReader~partial.swiftmodule",
+    "swift-dependencies": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxReader.swiftdeps",
+    "diagnostics": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxReader.dia"
+  },
+  "/Users/stovak/Projects/vox-format/implementations/swift/Sources/VoxFormat/VoxValidator.swift": {
+    "object": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxValidator.swift.o",
+    "swiftmodule": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxValidator~partial.swiftmodule",
+    "swift-dependencies": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxValidator.swiftdeps",
+    "diagnostics": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxValidator.dia"
+  },
+  "/Users/stovak/Projects/vox-format/implementations/swift/Sources/VoxFormat/VoxWriter.swift": {
+    "object": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxWriter.swift.o",
+    "swiftmodule": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxWriter~partial.swiftmodule",
+    "swift-dependencies": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxWriter.swiftdeps",
+    "diagnostics": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/VoxFormat.build/VoxWriter.dia"
+  }
+}

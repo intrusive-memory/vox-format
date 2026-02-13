@@ -1,0 +1,40 @@
+{
+  "": {
+    "swift-dependencies": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/master.swiftdeps"
+  },
+  "/Users/stovak/Projects/vox-format/tools/vox-cli/Sources/vox-cli/CreateCommand.swift": {
+    "dependencies": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/CreateCommand.d",
+    "object": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/CreateCommand.swift.o",
+    "swiftmodule": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/CreateCommand~partial.swiftmodule",
+    "swift-dependencies": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/CreateCommand.swiftdeps",
+    "diagnostics": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/CreateCommand.dia"
+  },
+  "/Users/stovak/Projects/vox-format/tools/vox-cli/Sources/vox-cli/ExtractCommand.swift": {
+    "dependencies": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/ExtractCommand.d",
+    "object": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/ExtractCommand.swift.o",
+    "swiftmodule": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/ExtractCommand~partial.swiftmodule",
+    "swift-dependencies": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/ExtractCommand.swiftdeps",
+    "diagnostics": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/ExtractCommand.dia"
+  },
+  "/Users/stovak/Projects/vox-format/tools/vox-cli/Sources/vox-cli/InspectCommand.swift": {
+    "dependencies": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/InspectCommand.d",
+    "object": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/InspectCommand.swift.o",
+    "swiftmodule": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/InspectCommand~partial.swiftmodule",
+    "swift-dependencies": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/InspectCommand.swiftdeps",
+    "diagnostics": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/InspectCommand.dia"
+  },
+  "/Users/stovak/Projects/vox-format/tools/vox-cli/Sources/vox-cli/ValidateCommand.swift": {
+    "dependencies": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/ValidateCommand.d",
+    "object": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/ValidateCommand.swift.o",
+    "swiftmodule": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/ValidateCommand~partial.swiftmodule",
+    "swift-dependencies": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/ValidateCommand.swiftdeps",
+    "diagnostics": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/ValidateCommand.dia"
+  },
+  "/Users/stovak/Projects/vox-format/tools/vox-cli/Sources/vox-cli/VoxCLI.swift": {
+    "dependencies": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/VoxCLI.d",
+    "object": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/VoxCLI.swift.o",
+    "swiftmodule": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/VoxCLI~partial.swiftmodule",
+    "swift-dependencies": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/VoxCLI.swiftdeps",
+    "diagnostics": "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/vox_cli.build/VoxCLI.dia"
+  }
+}

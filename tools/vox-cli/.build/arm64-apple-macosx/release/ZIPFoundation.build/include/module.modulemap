@@ -1,0 +1,3 @@
+module ZIPFoundation {
+    header "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/ZIPFoundation.build/include/ZIPFoundation-Swift.h"
+}
