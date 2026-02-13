@@ -1,6 +1,12 @@
 import Foundation
 
 /// Errors that can occur when reading, writing, or validating VOX files.
+///
+/// `VoxError` covers all failure modes in the VoxFormat library: archive extraction
+/// errors, manifest parsing failures, validation violations, and I/O problems. Each
+/// case provides a descriptive ``errorDescription`` suitable for user-facing messages.
+/// Validation errors may be collected into ``validationErrors(_:)`` when using
+/// ``VoxValidator`` in permissive mode.
 public enum VoxError: Error, LocalizedError {
     /// The file is not a valid ZIP archive.
     case invalidZipFile(URL, underlying: Error? = nil)
@@ -22,6 +28,30 @@ public enum VoxError: Error, LocalizedError {
 
     /// A feature is not yet implemented.
     case notImplemented(String)
+
+    /// A required field is empty or missing.
+    case emptyRequiredField(field: String)
+
+    /// The UUID is not in valid v4 format.
+    case invalidUUID(String)
+
+    /// The timestamp is not in valid ISO 8601 format.
+    case invalidTimestamp(String)
+
+    /// A voice description is too short (minimum 10 characters).
+    case descriptionTooShort(field: String, length: Int, minimum: Int)
+
+    /// An age range has invalid values (min must be less than max).
+    case invalidAgeRange(min: Int, max: Int)
+
+    /// A gender value is not one of the allowed enum values.
+    case invalidGender(String)
+
+    /// A reference audio entry has an empty file path.
+    case emptyReferenceAudioPath(index: Int)
+
+    /// Multiple validation errors occurred.
+    case validationErrors([VoxError])
 
     public var errorDescription: String? {
         switch self {
@@ -51,6 +81,23 @@ public enum VoxError: Error, LocalizedError {
             return msg
         case .notImplemented(let feature):
             return "Not implemented: \(feature)"
+        case .emptyRequiredField(let field):
+            return "Required field '\(field)' is empty or missing"
+        case .invalidUUID(let value):
+            return "Invalid UUID v4 format: '\(value)'"
+        case .invalidTimestamp(let value):
+            return "Invalid ISO 8601 timestamp: '\(value)'"
+        case .descriptionTooShort(let field, let length, let minimum):
+            return "Field '\(field)' is too short (\(length) characters, minimum \(minimum))"
+        case .invalidAgeRange(let min, let max):
+            return "Invalid age range: minimum (\(min)) must be less than maximum (\(max))"
+        case .invalidGender(let value):
+            return "Invalid gender value '\(value)'. Must be one of: male, female, nonbinary, neutral"
+        case .emptyReferenceAudioPath(let index):
+            return "Reference audio entry at index \(index) has an empty file path"
+        case .validationErrors(let errors):
+            let descriptions = errors.compactMap { $0.errorDescription }
+            return "Validation failed with \(errors.count) error(s):\n" + descriptions.joined(separator: "\n")
         }
     }
 }

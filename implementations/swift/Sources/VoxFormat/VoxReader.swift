@@ -5,29 +5,47 @@ import ZIPFoundation
 ///
 /// `VoxReader` extracts a `.vox` ZIP archive to a temporary directory, parses
 /// the `manifest.json`, discovers reference audio files, and returns a fully
-/// populated ``VoxFile``.
+/// populated ``VoxFile``. The extraction process handles ZIP decompression via
+/// ZIPFoundation, validates the archive structure, and resolves file references
+/// declared in the manifest.
 ///
 /// ```swift
 /// let reader = VoxReader()
 /// let voxFile = try reader.read(from: URL(fileURLWithPath: "voice.vox"))
 /// print(voxFile.manifest.voice.name)
+/// print(voxFile.manifest.voice.description)
+/// print("Audio files: \(voxFile.referenceAudioURLs.count)")
 /// ```
 public final class VoxReader {
 
-    /// Creates a new VoxReader instance.
+    /// Creates a new `VoxReader` instance.
     public init() {}
 
     /// Reads a `.vox` archive and returns a fully populated ``VoxFile``.
     ///
-    /// The archive is extracted to a temporary directory. The manifest is parsed,
-    /// reference audio files are discovered, and the embeddings directory is located
-    /// if present.
+    /// The method performs four steps:
+    /// 1. Extracts the ZIP archive to a temporary directory.
+    /// 2. Parses `manifest.json` into a ``VoxManifest``.
+    /// 3. Discovers reference audio files in the `reference/` directory.
+    /// 4. Locates the `embeddings/` directory if present.
+    ///
+    /// On failure, the temporary directory is cleaned up before the error is thrown.
     ///
     /// - Parameter url: The file URL of the `.vox` archive to read.
     /// - Returns: A ``VoxFile`` containing the parsed manifest and file references.
     /// - Throws: ``VoxError/invalidZipFile(_:underlying:)`` if the file is not a valid ZIP archive.
-    /// - Throws: ``VoxError/manifestNotFound(_:)`` if `manifest.json` is missing.
+    /// - Throws: ``VoxError/manifestNotFound(_:)`` if `manifest.json` is missing from the archive.
     /// - Throws: ``VoxError/invalidJSON(_:underlying:)`` if `manifest.json` cannot be decoded.
+    ///
+    /// ```swift
+    /// let reader = VoxReader()
+    /// do {
+    ///     let voxFile = try reader.read(from: fileURL)
+    ///     print(voxFile.manifest.voice.name)
+    /// } catch {
+    ///     print("Failed to read: \(error.localizedDescription)")
+    /// }
+    /// ```
     public func read(from url: URL) throws -> VoxFile {
         // Step 1: Extract the ZIP archive to a temporary directory
         let extractedDir = try extractArchive(at: url)

@@ -1,31 +1,47 @@
 import Foundation
 import ZIPFoundation
 
-/// Writes `.vox` voice identity archives.
+/// Creates `.vox` voice identity archives from ``VoxFile`` instances.
 ///
-/// `VoxWriter` takes a ``VoxFile`` and creates a valid `.vox` ZIP archive containing
-/// the manifest JSON, reference audio files, and embeddings data.
+/// `VoxWriter` takes a ``VoxFile`` and produces a valid `.vox` ZIP archive containing
+/// the manifest JSON at the archive root, reference audio files in the `reference/`
+/// directory, and engine-specific data in the `embeddings/` directory. The output
+/// archive is verified to have correct ZIP magic bytes after creation.
 ///
 /// ```swift
+/// let manifest = VoxManifest(
+///     voxVersion: "0.1.0",
+///     id: UUID().uuidString.lowercased(),
+///     created: Date(),
+///     voice: VoxManifest.Voice(name: "Voice", description: "A warm narrator voice.")
+/// )
 /// let writer = VoxWriter()
-/// let voxFile = VoxFile(manifest: manifest, referenceAudioURLs: audioURLs)
-/// try writer.write(voxFile, to: URL(fileURLWithPath: "output.vox"))
+/// try writer.write(VoxFile(manifest: manifest), to: URL(fileURLWithPath: "output.vox"))
 /// ```
 public final class VoxWriter {
 
-    /// Creates a new VoxWriter instance.
+    /// Creates a new `VoxWriter` instance.
     public init() {}
 
-    /// Writes a ``VoxFile`` to a `.vox` ZIP archive.
+    /// Writes a ``VoxFile`` to a `.vox` ZIP archive at the specified URL.
     ///
-    /// The method encodes the manifest to pretty-printed JSON, creates a ZIP archive,
-    /// and adds the manifest, reference audio files, and embeddings data.
+    /// The method performs three steps:
+    /// 1. Encodes the manifest to pretty-printed, sorted-key JSON.
+    /// 2. Creates a ZIP archive with the manifest, reference audio, and embeddings.
+    /// 3. Verifies the output file has correct ZIP magic bytes (`PK\x03\x04`).
+    ///
+    /// If a file already exists at the destination URL, it is overwritten.
     ///
     /// - Parameters:
-    ///   - voxFile: The voice identity data to write.
+    ///   - voxFile: The voice identity data to write, including manifest and file references.
     ///   - url: The destination file URL for the `.vox` archive.
     /// - Throws: ``VoxError/writeFailed(_:underlying:)`` if the archive cannot be created.
     /// - Throws: ``VoxError/ioError(_:underlying:)`` if file operations fail.
+    ///
+    /// ```swift
+    /// let writer = VoxWriter()
+    /// try writer.write(voxFile, to: URL(fileURLWithPath: "output.vox"))
+    /// ```
     public func write(_ voxFile: VoxFile, to url: URL) throws {
         // Step 1: Encode manifest to JSON
         let manifestData = try encodeManifest(voxFile.manifest)

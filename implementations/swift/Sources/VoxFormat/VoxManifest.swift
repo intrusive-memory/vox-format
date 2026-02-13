@@ -1,21 +1,38 @@
 import Foundation
 
-/// VOX voice identity manifest structure.
+/// The root metadata structure for a VOX voice identity file.
 ///
-/// Represents the metadata and configuration for a voice identity stored in a .vox file.
-/// The manifest defines voice characteristics, prosodic preferences, reference audio,
-/// character context, and provenance tracking.
+/// `VoxManifest` represents the complete contents of the `manifest.json` file inside
+/// a `.vox` archive. It defines the voice identity through required fields (version,
+/// identifier, creation date, and voice metadata) and optional sections for prosody,
+/// reference audio, character context, provenance, and engine-specific extensions.
+///
+/// Use ``VoxManifest/decoder()`` and ``VoxManifest/encoder()`` for JSON serialization
+/// that handles ISO 8601 dates and snake_case key mapping automatically.
+///
+/// ```swift
+/// let manifest = VoxManifest(
+///     voxVersion: "0.1.0",
+///     id: UUID().uuidString.lowercased(),
+///     created: Date(),
+///     voice: VoxManifest.Voice(
+///         name: "Narrator",
+///         description: "A warm, clear narrator voice for audiobooks."
+///     )
+/// )
+/// let data = try VoxManifest.encoder().encode(manifest)
+/// ```
 public struct VoxManifest: Codable {
-    /// Semantic version of the VOX format specification.
+    /// Semantic version of the VOX format specification (e.g., `"0.1.0"`).
     public let voxVersion: String
 
-    /// Unique identifier for this voice identity (UUID v4).
+    /// Unique identifier for this voice identity in UUID v4 format.
     public let id: String
 
     /// ISO 8601 timestamp of when this voice identity was created.
     public let created: Date
 
-    /// Core voice identity metadata.
+    /// Core voice identity metadata including name, description, and optional attributes.
     public let voice: Voice
 
     /// Prosodic preferences describing the voice's natural speaking style.
@@ -30,7 +47,7 @@ public struct VoxManifest: Codable {
     /// Provenance tracking for voice origin and consent.
     public var provenance: Provenance?
 
-    /// Engine-specific extension data.
+    /// Engine-specific extension data, keyed by provider namespace.
     public var extensions: [String: AnyCodable]?
 
     private enum CodingKeys: String, CodingKey {
@@ -71,24 +88,34 @@ public struct VoxManifest: Codable {
 // MARK: - Voice
 
 extension VoxManifest {
-    /// Core voice identity metadata.
+    /// Core voice identity metadata within a VOX manifest.
+    ///
+    /// `Voice` contains the required display name and natural language description of the
+    /// voice, along with optional attributes like language, gender, age range, and tags.
+    /// The `description` field is particularly important as it serves as the primary input
+    /// for voice design engines that generate synthetic voices from text descriptions.
     public struct Voice: Codable {
-        /// Display name for the voice.
+        /// Display name for the voice (e.g., `"Narrator"`, `"PROTAGONIST"`).
         public let name: String
 
         /// Natural language description of the voice characteristics.
+        ///
+        /// Must be at least 10 characters. This description is used by voice design engines
+        /// to synthesize or match voices. Be specific about accent, tone, age, and personality.
         public let description: String
 
-        /// Primary language of the voice in BCP 47 format (e.g., en-US, en-GB, fr-FR).
+        /// Primary language of the voice in BCP 47 format (e.g., `"en-US"`, `"en-GB"`, `"fr-FR"`).
         public var language: String?
 
         /// Gender presentation of the voice.
+        ///
+        /// Must be one of: `"male"`, `"female"`, `"nonbinary"`, `"neutral"`.
         public var gender: String?
 
-        /// Approximate age range as [minimum, maximum].
+        /// Approximate age range as `[minimum, maximum]` where `minimum < maximum`.
         public var ageRange: [Int]?
 
-        /// Searchable tags describing voice characteristics.
+        /// Searchable tags describing voice characteristics (e.g., `["narrator", "authoritative"]`).
         public var tags: [String]?
 
         private enum CodingKeys: String, CodingKey {
@@ -122,20 +149,24 @@ extension VoxManifest {
 
 extension VoxManifest {
     /// Prosodic preferences describing the voice's natural speaking style.
+    ///
+    /// `Prosody` captures qualitative descriptions of how the voice should sound in terms
+    /// of pitch, speaking rate, energy, and default emotional tone. These are descriptive
+    /// strings (not numeric values) to remain engine-agnostic. All fields are optional.
     public struct Prosody: Codable {
-        /// Base pitch level (e.g., low, medium, high).
+        /// Base pitch level (e.g., `"low"`, `"medium"`, `"high"`).
         public var pitchBase: String?
 
-        /// Pitch variation range (e.g., narrow, moderate, wide).
+        /// Pitch variation range (e.g., `"narrow"`, `"moderate"`, `"wide"`).
         public var pitchRange: String?
 
-        /// Speaking rate (e.g., slow, moderate, fast).
+        /// Speaking rate (e.g., `"slow"`, `"moderate"`, `"fast"`).
         public var rate: String?
 
-        /// Overall energy or intensity level (e.g., low, medium, high).
+        /// Overall energy or intensity level (e.g., `"low"`, `"medium"`, `"high"`).
         public var energy: String?
 
-        /// Default emotional tone when no specific emotion is requested.
+        /// Default emotional tone when no specific emotion is requested (e.g., `"calm authority"`).
         public var emotionDefault: String?
 
         private enum CodingKeys: String, CodingKey {
@@ -165,21 +196,27 @@ extension VoxManifest {
 // MARK: - ReferenceAudio
 
 extension VoxManifest {
-    /// Reference audio clip metadata for voice cloning or style matching.
+    /// Metadata for a reference audio clip used in voice cloning or style matching.
+    ///
+    /// Each `ReferenceAudio` entry describes one audio file bundled in the `.vox` archive's
+    /// `reference/` directory. The `file` path and `transcript` are required; language,
+    /// duration, and context are optional. Audio files should be WAV format (24kHz, 16-bit
+    /// PCM, mono) for maximum compatibility across TTS engines.
     public struct ReferenceAudio: Codable {
-        /// Path to the audio file within the .vox archive (relative to archive root).
+        /// Path to the audio file within the `.vox` archive, relative to the archive root
+        /// (e.g., `"reference/sample-01.wav"`).
         public let file: String
 
-        /// Verbatim transcript of the audio clip.
+        /// Verbatim transcript of the audio clip content.
         public let transcript: String
 
-        /// Language of the audio clip in BCP 47 format.
+        /// Language of the audio clip in BCP 47 format (e.g., `"en-US"`).
         public var language: String?
 
-        /// Duration of the audio clip in seconds.
+        /// Duration of the audio clip in seconds (e.g., `4.2`).
         public var durationSeconds: Double?
 
-        /// Contextual note about the audio clip.
+        /// Contextual note about the audio clip (e.g., `"Calm narration, studio recording"`).
         public var context: String?
 
         private enum CodingKeys: String, CodingKey {
@@ -210,11 +247,17 @@ extension VoxManifest {
 
 extension VoxManifest {
     /// Character context for screenplay-aware voice casting.
+    ///
+    /// `Character` provides narrative context that helps casting systems select appropriate
+    /// voice parameters. It includes the character's role, emotional range, relationships
+    /// with other characters, and a reference to the source material. This information
+    /// enables context-aware synthesis where the TTS engine can adapt delivery based on
+    /// dramatic requirements.
     public struct Character: Codable {
         /// Description of the character's role in the narrative.
         public var role: String?
 
-        /// Range of emotions the character expresses.
+        /// Range of emotions the character expresses (e.g., `["contemplative", "melancholic", "stern"]`).
         public var emotionalRange: [String]?
 
         /// Character relationships mapped as character name to relationship description.
@@ -243,15 +286,18 @@ extension VoxManifest {
         }
     }
 
-    /// Source material reference for a character.
+    /// Source material reference for a character in the narrative.
+    ///
+    /// Links a character to the original screenplay, novel, or script that defines it,
+    /// enabling traceability from voice identity back to source material.
     public struct Source: Codable {
-        /// Title of the source work.
+        /// Title of the source work (e.g., `"The Chronicle"`).
         public var work: String?
 
-        /// Format of the source material (e.g., fountain, screenplay, novel).
+        /// Format of the source material (e.g., `"fountain"`, `"screenplay"`, `"novel"`).
         public var format: String?
 
-        /// Path to the source file.
+        /// Path to the source file (e.g., `"episodes/chronicle-episode-01.fountain"`).
         public var file: String?
 
         public init(
@@ -269,21 +315,26 @@ extension VoxManifest {
 // MARK: - Provenance
 
 extension VoxManifest {
-    /// Provenance tracking for voice origin and consent.
+    /// Provenance tracking for voice origin, creation method, and consent status.
+    ///
+    /// `Provenance` documents how a voice was created and under what terms it may be used.
+    /// This is critical for ethical voice cloning: the `method` field distinguishes designed
+    /// voices (no real person) from cloned voices (requires consent), and the `consent` field
+    /// tracks authorization status. All fields are optional but strongly recommended.
     public struct Provenance: Codable {
-        /// How the voice was created.
+        /// How the voice was created: `"designed"`, `"cloned"`, `"preset"`, or `"hybrid"`.
         public var method: String?
 
-        /// TTS engine or tool used to create the voice.
+        /// TTS engine or tool used to create the voice (e.g., `"qwen3-tts-voicedesign-1.7b"`).
         public var engine: String?
 
-        /// Consent status for voice cloning. Null for designed voices (no person involved).
+        /// Consent status for voice cloning: `"self"`, `"granted"`, `"unknown"`, or `nil` for designed voices.
         public var consent: String?
 
-        /// License under which the voice is distributed.
+        /// License under which the voice is distributed (e.g., `"CC0-1.0"`, `"CC-BY-4.0"`).
         public var license: String?
 
-        /// Additional notes about voice provenance.
+        /// Additional notes about voice provenance and creation context.
         public var notes: String?
 
         public init(
@@ -304,7 +355,11 @@ extension VoxManifest {
 
 // MARK: - AnyCodable Helper
 
-/// Type-erased Codable wrapper for heterogeneous extension data.
+/// Type-erased `Codable` wrapper for heterogeneous JSON values in extension data.
+///
+/// `AnyCodable` enables the `extensions` dictionary to contain arbitrary JSON structures
+/// (strings, numbers, booleans, arrays, and nested objects) from different TTS engine
+/// providers. It handles encoding and decoding by inspecting the underlying type at runtime.
 public struct AnyCodable: Codable {
     public let value: Any
 
@@ -366,14 +421,24 @@ public struct AnyCodable: Codable {
 // MARK: - Date Coding Strategy
 
 extension VoxManifest {
-    /// Custom ISO8601 date decoder for manifest parsing.
+    /// Creates a configured `JSONDecoder` for parsing VOX manifest JSON.
+    ///
+    /// The decoder uses ISO 8601 date decoding strategy to parse the `created`
+    /// timestamp field. Use this decoder for all manifest JSON deserialization.
+    ///
+    /// - Returns: A `JSONDecoder` configured for VOX manifest parsing.
     public static func decoder() -> JSONDecoder {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return decoder
     }
 
-    /// Custom ISO8601 date encoder for manifest writing.
+    /// Creates a configured `JSONEncoder` for writing VOX manifest JSON.
+    ///
+    /// The encoder uses ISO 8601 date encoding, pretty-printed output with sorted
+    /// keys, producing human-readable JSON with consistent key ordering.
+    ///
+    /// - Returns: A `JSONEncoder` configured for VOX manifest serialization.
     public static func encoder() -> JSONEncoder {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
