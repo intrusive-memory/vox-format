@@ -1,0 +1,9 @@
+pyproject.toml
+src/voxformat/__init__.py
+src/voxformat/manifest.py
+src/voxformat.egg-info/PKG-INFO
+src/voxformat.egg-info/SOURCES.txt
+src/voxformat.egg-info/dependency_links.txt
+src/voxformat.egg-info/requires.txt
+src/voxformat.egg-info/top_level.txt
+tests/test_manifest_decoding.py
