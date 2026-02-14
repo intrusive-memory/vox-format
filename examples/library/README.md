@@ -78,6 +78,94 @@ Real person voices require:
 
 By restricting the library to description-designed voices, we eliminate these concerns entirely.
 
+## CDN Hosting
+
+The VOX Voice Library is distributed via CDN for programmatic access. Voices can be downloaded directly by URL without cloning the repository, enabling integrations where applications fetch voice definitions on demand.
+
+### URL Structure
+
+All library voices are served under a versioned path:
+
+```
+https://cdn.intrusive-memory.productions/vox-library/v1/{category}/{voice-id}.vox
+```
+
+Example URLs:
+
+- `https://cdn.intrusive-memory.productions/vox-library/v1/narrators/NARR-001.vox`
+- `https://cdn.intrusive-memory.productions/vox-library/v1/characters/CHAR-003.vox`
+- `https://cdn.intrusive-memory.productions/vox-library/v1/accents/ACNT-002.vox`
+- `https://cdn.intrusive-memory.productions/vox-library/v1/ages/AGE-001.vox`
+- `https://cdn.intrusive-memory.productions/vox-library/v1/genres/GENR-001.vox`
+
+### File Naming
+
+CDN files use the voice target ID as the filename: `{CATEGORY-ABBREV}-{NUMBER}.vox`. The category abbreviations are:
+
+- `NARR` - Narrators
+- `CHAR` - Characters
+- `ACNT` - Accents
+- `AGE` - Ages (note: no trailing S)
+- `GENR` - Genres
+
+### Library Index
+
+The full library index is available at the CDN root:
+
+```
+https://cdn.intrusive-memory.productions/vox-library/v1/index.json
+```
+
+This JSON file contains metadata for every voice in the library, enabling search and discovery without downloading individual files.
+
+### Directory Structure
+
+```
+vox-library/
+└── v1/
+    ├── index.json
+    ├── narrators/
+    │   ├── NARR-001.vox
+    │   ├── NARR-002.vox
+    │   └── ...
+    ├── characters/
+    │   ├── CHAR-001.vox
+    │   └── ...
+    ├── accents/
+    │   ├── ACNT-001.vox
+    │   └── ...
+    ├── ages/
+    │   ├── AGE-001.vox
+    │   └── ...
+    └── genres/
+        ├── GENR-001.vox
+        └── ...
+```
+
+### Upload Process
+
+To publish a new voice to the CDN:
+
+1. **Create** the `.vox` file locally using `vox-cli create`
+2. **Validate** with `vox-cli validate --strict` to ensure compliance
+3. **Upload** via rclone or aws-cli: `rclone copy NARR-001.vox r2:vox-library/v1/narrators/`
+4. **Update** `index.json` with the new entry and upload the revised index
+5. **Verify** the download URL returns the correct file: `curl -I https://cdn.intrusive-memory.productions/vox-library/v1/narrators/NARR-001.vox`
+
+### CORS Configuration
+
+The CDN is configured for broad client access:
+
+- **Allowed methods:** GET, HEAD
+- **Allowed origins:** `*` (all origins permitted)
+- **Cache duration:** 24 hours (`Cache-Control: public, max-age=86400`)
+- **Compression:** gzip enabled for `index.json` and manifest data
+- **Content-Type:** `application/zip` for `.vox` files, `application/json` for index
+
+### Versioning
+
+The `v1/` path prefix represents the current library layout. If the index schema, directory structure, or naming conventions change in a breaking way, a new version directory (`v2/`) will be created. The previous version remains available for backward compatibility. Non-breaking additions (new voices, updated descriptions) are published in-place under the existing version.
+
 ## Contributing
 
 To contribute a voice:
