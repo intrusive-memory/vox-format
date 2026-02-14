@@ -1,0 +1,14 @@
+README.md
+pyproject.toml
+src/vox_cli/__init__.py
+src/vox_cli/cli.py
+src/vox_cli/create.py
+src/vox_cli/extract.py
+src/vox_cli/inspect.py
+src/vox_cli/validate.py
+src/vox_cli.egg-info/PKG-INFO
+src/vox_cli.egg-info/SOURCES.txt
+src/vox_cli.egg-info/dependency_links.txt
+src/vox_cli.egg-info/entry_points.txt
+src/vox_cli.egg-info/requires.txt
+src/vox_cli.egg-info/top_level.txt

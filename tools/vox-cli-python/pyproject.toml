@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vox-cli"
+version = "0.1.0"
+description = "Command-line tool for working with VOX voice identity files"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "Intrusive Memory Productions", email = "noreply@intrusive-memory.productions"}
+]
+keywords = ["vox", "voice", "tts", "text-to-speech", "audio", "cli"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "click>=8.0",
+    # voxformat dependency should be installed separately via:
+    # pip install -e ../../implementations/python
+]
+
+[project.scripts]
+vox = "vox_cli.cli:cli"
+
+[project.urls]
+Homepage = "https://github.com/intrusive-memory/vox-format"
+Repository = "https://github.com/intrusive-memory/vox-format"
+Documentation = "https://github.com/intrusive-memory/vox-format/tree/main/tools/vox-cli-python"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+vox_cli = ["py.typed"]
