@@ -18,6 +18,7 @@ from .manifest import (
 from .vox_file import VoxFile
 from .reader import VoxReader
 from .writer import VoxWriter
+from .validator import VoxValidator
 from .errors import (
     VoxError,
     InvalidArchive,
@@ -25,6 +26,15 @@ from .errors import (
     InvalidManifest,
     InvalidReferenceAudio,
     WriteError,
+    ValidationError,
+    EmptyRequiredField,
+    InvalidUUID,
+    InvalidTimestamp,
+    DescriptionTooShort,
+    InvalidAgeRange,
+    InvalidGender,
+    EmptyReferenceAudioPath,
+    MultipleValidationErrors,
 )
 
 __all__ = [
@@ -40,6 +50,7 @@ __all__ = [
     "VoxFile",
     "VoxReader",
     "VoxWriter",
+    "VoxValidator",
     # Exceptions
     "VoxError",
     "InvalidArchive",
@@ -47,4 +58,13 @@ __all__ = [
     "InvalidManifest",
     "InvalidReferenceAudio",
     "WriteError",
+    "ValidationError",
+    "EmptyRequiredField",
+    "InvalidUUID",
+    "InvalidTimestamp",
+    "DescriptionTooShort",
+    "InvalidAgeRange",
+    "InvalidGender",
+    "EmptyReferenceAudioPath",
+    "MultipleValidationErrors",
 ]
