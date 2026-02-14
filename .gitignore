@@ -1,0 +1,33 @@
+# Sprint Supervisor detritus
+SUPERVISOR_STATE.md
+EXECUTION_PLAN.md
+BLOCKERS.md
+PRIORITIES.md
+VAGUENESS_AUDIT.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.coverage
+*.egg-info/
+dist/
+build/
+
+# Swift
+.build/
+.swiftpm/
+*.xcodeproj/
+DerivedData/
+
+# macOS
+.DS_Store
+._*
+
+# Editor
+*.swp
+*~
+.vscode/
+.idea/
