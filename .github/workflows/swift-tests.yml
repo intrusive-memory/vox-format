@@ -1,0 +1,65 @@
+name: Swift Tests
+
+on:
+  pull_request:
+    branches: [main, development]
+  push:
+    branches: [main]
+
+jobs:
+  test-swift:
+    name: Test Swift Package
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Show Swift version
+        run: |
+          swift --version
+          # Verify Swift 6.2+ is available
+          SWIFT_VERSION=$(swift --version | head -1 | awk '{print $4}')
+          echo "Swift version: $SWIFT_VERSION"
+
+      - name: Build Swift package
+        working-directory: implementations/swift
+        run: swift build
+
+      - name: Run unit tests
+        working-directory: implementations/swift
+        run: swift test
+
+      - name: Build release binary
+        working-directory: implementations/swift
+        run: swift build -c release
+
+      - name: Install ajv-cli
+        run: npm install -g ajv-cli
+
+      - name: Validate example .vox files
+        run: |
+          # Validate all example manifests against JSON Schema
+          for voxfile in examples/**/*.vox; do
+            if [ -f "$voxfile" ]; then
+              echo "Validating $voxfile..."
+              # Extract manifest.json from .vox (ZIP) file
+              unzip -p "$voxfile" manifest.json > /tmp/manifest.json
+              # Validate against schema
+              ajv validate -s schemas/manifest-v0.1.0.json -d /tmp/manifest.json
+              if [ $? -ne 0 ]; then
+                echo "❌ Validation failed for $voxfile"
+                exit 1
+              fi
+              echo "✓ $voxfile is valid"
+            fi
+          done
+          echo "✓ All examples validated successfully"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: implementations/swift/.build/debug/*.xctest
+          retention-days: 7
