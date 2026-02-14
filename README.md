@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="vox-format.jpg" alt="VOX Format Logo" width="400">
+</p>
+
 # VOX: Open Voice Identity Format
 
 ![Swift Tests](https://github.com/intrusive-memory/vox-format/actions/workflows/swift-tests.yml/badge.svg)
