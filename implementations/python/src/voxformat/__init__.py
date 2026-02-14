@@ -15,8 +15,20 @@ from .manifest import (
     Source,
     Provenance,
 )
+from .vox_file import VoxFile
+from .reader import VoxReader
+from .writer import VoxWriter
+from .errors import (
+    VoxError,
+    InvalidArchive,
+    ManifestNotFound,
+    InvalidManifest,
+    InvalidReferenceAudio,
+    WriteError,
+)
 
 __all__ = [
+    # Core data structures
     "VoxManifest",
     "Voice",
     "Prosody",
@@ -24,4 +36,15 @@ __all__ = [
     "Character",
     "Source",
     "Provenance",
+    # I/O classes
+    "VoxFile",
+    "VoxReader",
+    "VoxWriter",
+    # Exceptions
+    "VoxError",
+    "InvalidArchive",
+    "ManifestNotFound",
+    "InvalidManifest",
+    "InvalidReferenceAudio",
+    "WriteError",
 ]
