@@ -21,6 +21,7 @@ build/
 .swiftpm/
 *.xcodeproj/
 DerivedData/
+Package.resolved
 
 # macOS
 .DS_Store
