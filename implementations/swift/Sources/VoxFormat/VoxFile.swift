@@ -2,16 +2,23 @@ import Foundation
 
 /// A parsed VOX voice identity file representing the complete contents of a `.vox` archive.
 ///
-/// `VoxFile` is an immutable container that holds the decoded manifest metadata, resolved
-/// reference audio file locations, and an optional extensions directory. It serves as the
-/// primary exchange type between ``VoxReader`` (which produces instances by parsing archives)
-/// and ``VoxWriter`` (which consumes instances to create archives).
+/// `VoxFile` is an immutable, in-memory container that holds the decoded manifest metadata,
+/// reference audio data, and engine-specific embeddings. It serves as the primary exchange
+/// type between ``VoxReader`` (which produces instances by parsing archives) and
+/// ``VoxWriter`` (which consumes instances to create archives).
+///
+/// All binary data is held in memory — no temporary files or directories are needed.
 ///
 /// ```swift
 /// // Reading
 /// let reader = VoxReader()
 /// let voxFile = try reader.read(from: URL(fileURLWithPath: "voice.vox"))
 /// print(voxFile.manifest.voice.name)
+///
+/// // Accessing embeddings
+/// if let clonePrompt = voxFile.embeddings["qwen3-tts/clone-prompt.bin"] {
+///     // Use the binary data directly
+/// }
 ///
 /// // Writing
 /// let writer = VoxWriter()
@@ -21,35 +28,34 @@ public struct VoxFile {
     /// The parsed manifest containing all voice identity metadata.
     public let manifest: VoxManifest
 
-    /// URLs to reference audio files extracted from or destined for the archive.
+    /// Reference audio data keyed by filename (e.g. `"sample-01.wav"` → audio bytes).
     ///
-    /// After reading, these point to temporary file locations in the extracted archive.
-    /// When creating a new `VoxFile` for writing, these should point to the source
-    /// audio files on disk that will be bundled into the `reference/` directory.
-    public let referenceAudioURLs: [URL]
+    /// When reading, filenames are extracted from the `reference/` directory in the archive.
+    /// When writing, each entry is written to `reference/<filename>` in the archive.
+    public let referenceAudio: [String: Data]
 
-    /// URL to the extensions directory within the extracted archive, if present.
+    /// Engine-specific embedding data keyed by path relative to `embeddings/`.
     ///
-    /// Engine-specific binary data (embeddings, model weights) lives in the
-    /// `embeddings/` directory, organized by provider namespace
-    /// (e.g., `embeddings/qwen3-tts/`).
-    public let extensionsDirectory: URL?
+    /// For example, a Qwen3-TTS clone prompt would be stored as:
+    /// `"qwen3-tts/clone-prompt.bin"` → binary data
+    ///
+    /// When reading, entries are extracted from the `embeddings/` directory in the archive.
+    /// When writing, each entry is written to `embeddings/<key>` in the archive.
+    public let embeddings: [String: Data]
 
-    /// Creates a new `VoxFile` with the given manifest and file references.
+    /// Creates a new `VoxFile` with the given manifest and data.
     ///
     /// - Parameters:
     ///   - manifest: The voice identity manifest containing all metadata.
-    ///   - referenceAudioURLs: URLs to reference audio files to include in the archive.
-    ///     Defaults to an empty array.
-    ///   - extensionsDirectory: URL to a directory containing engine-specific extension
-    ///     data, or `nil` if no extensions are present. Defaults to `nil`.
+    ///   - referenceAudio: Reference audio data keyed by filename. Defaults to empty.
+    ///   - embeddings: Engine-specific embedding data keyed by relative path. Defaults to empty.
     public init(
         manifest: VoxManifest,
-        referenceAudioURLs: [URL] = [],
-        extensionsDirectory: URL? = nil
+        referenceAudio: [String: Data] = [:],
+        embeddings: [String: Data] = [:]
     ) {
         self.manifest = manifest
-        self.referenceAudioURLs = referenceAudioURLs
-        self.extensionsDirectory = extensionsDirectory
+        self.referenceAudio = referenceAudio
+        self.embeddings = embeddings
     }
 }

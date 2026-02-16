@@ -48,8 +48,8 @@ final class RoundtripTests: XCTestCase {
         XCTAssertNil(readBack.manifest.character)
         XCTAssertNil(readBack.manifest.provenance)
         XCTAssertNil(readBack.manifest.extensions)
-        XCTAssertTrue(readBack.referenceAudioURLs.isEmpty)
-        XCTAssertNil(readBack.extensionsDirectory)
+        XCTAssertTrue(readBack.referenceAudio.isEmpty)
+        XCTAssertTrue(readBack.embeddings.isEmpty)
     }
 
     func testRoundtripFullySpecifiedVoxFile() throws {
@@ -149,13 +149,8 @@ final class RoundtripTests: XCTestCase {
     }
 
     func testRoundtripWithReferenceAudio() throws {
-        // Create a temporary audio file
-        let tempDir = FileManager.default.temporaryDirectory
         let audioFileName = "roundtrip-audio-\(UUID().uuidString).wav"
-        let audioFile = tempDir.appendingPathComponent(audioFileName)
         let audioContent = Data(repeating: 0xAB, count: 1024) // 1KB dummy audio
-        FileManager.default.createFile(atPath: audioFile.path, contents: audioContent)
-        defer { try? FileManager.default.removeItem(at: audioFile) }
 
         let manifest = VoxManifest(
             voxVersion: "0.1.0",
@@ -177,10 +172,11 @@ final class RoundtripTests: XCTestCase {
 
         let voxFile = VoxFile(
             manifest: manifest,
-            referenceAudioURLs: [audioFile]
+            referenceAudio: [audioFileName: audioContent]
         )
 
-        let outputURL = tempDir.appendingPathComponent("roundtrip-audio-\(UUID().uuidString).vox")
+        let outputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("roundtrip-audio-\(UUID().uuidString).vox")
         defer { try? FileManager.default.removeItem(at: outputURL) }
 
         try writer.write(voxFile, to: outputURL)
@@ -192,13 +188,38 @@ final class RoundtripTests: XCTestCase {
         XCTAssertEqual(readBack.manifest.referenceAudio?.first?.transcript, "This is a test audio roundtrip.")
         XCTAssertEqual(readBack.manifest.referenceAudio?.first?.durationSeconds, 3.5)
 
-        // Audio file should be present in the extracted archive
-        XCTAssertEqual(readBack.referenceAudioURLs.count, 1)
-        if let extractedAudioURL = readBack.referenceAudioURLs.first {
-            let extractedData = try Data(contentsOf: extractedAudioURL)
-            XCTAssertEqual(extractedData.count, audioContent.count, "Audio file size should match")
-            XCTAssertEqual(extractedData, audioContent, "Audio file content should match exactly")
-        }
+        // Audio data should be present and match exactly
+        XCTAssertEqual(readBack.referenceAudio.count, 1)
+        XCTAssertEqual(readBack.referenceAudio[audioFileName]?.count, audioContent.count, "Audio data size should match")
+        XCTAssertEqual(readBack.referenceAudio[audioFileName], audioContent, "Audio data content should match exactly")
+    }
+
+    func testRoundtripWithEmbeddings() throws {
+        let manifest = VoxManifest(
+            voxVersion: "0.1.0",
+            id: UUID().uuidString,
+            created: Date(),
+            voice: VoxManifest.Voice(
+                name: "EmbeddingRoundtrip",
+                description: "Voice with embeddings for roundtrip testing."
+            )
+        )
+
+        let clonePrompt = Data(repeating: 0xCD, count: 512)
+        let voxFile = VoxFile(
+            manifest: manifest,
+            embeddings: ["qwen3-tts/clone-prompt.bin": clonePrompt]
+        )
+
+        let outputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("roundtrip-embed-\(UUID().uuidString).vox")
+        defer { try? FileManager.default.removeItem(at: outputURL) }
+
+        try writer.write(voxFile, to: outputURL)
+        let readBack = try reader.read(from: outputURL)
+
+        XCTAssertEqual(readBack.embeddings.count, 1)
+        XCTAssertEqual(readBack.embeddings["qwen3-tts/clone-prompt.bin"], clonePrompt)
     }
 
     func testRoundtripReadExistingExampleAndRewrite() throws {

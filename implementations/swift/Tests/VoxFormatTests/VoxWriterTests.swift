@@ -140,12 +140,8 @@ final class VoxWriterTests: XCTestCase {
     }
 
     func testWriteVoxFileWithReferenceAudio() throws {
-        // Create a temporary "audio" file
-        let tempDir = FileManager.default.temporaryDirectory
-        let audioFile = tempDir.appendingPathComponent("test-audio-\(UUID().uuidString).wav")
         let audioContent = "RIFF\0\0\0\0WAVEfmt ".data(using: .ascii)!
-        FileManager.default.createFile(atPath: audioFile.path, contents: audioContent)
-        defer { try? FileManager.default.removeItem(at: audioFile) }
+        let audioFileName = "test-audio-\(UUID().uuidString).wav"
 
         let manifest = VoxManifest(
             voxVersion: "0.1.0",
@@ -157,7 +153,7 @@ final class VoxWriterTests: XCTestCase {
             ),
             referenceAudio: [
                 VoxManifest.ReferenceAudio(
-                    file: "reference/\(audioFile.lastPathComponent)",
+                    file: "reference/\(audioFileName)",
                     transcript: "Test audio transcript.",
                     language: "en-US",
                     durationSeconds: 3.0
@@ -167,10 +163,11 @@ final class VoxWriterTests: XCTestCase {
 
         let voxFile = VoxFile(
             manifest: manifest,
-            referenceAudioURLs: [audioFile]
+            referenceAudio: [audioFileName: audioContent]
         )
 
-        let outputURL = tempDir.appendingPathComponent("audio-test-\(UUID().uuidString).vox")
+        let outputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("audio-test-\(UUID().uuidString).vox")
         defer { try? FileManager.default.removeItem(at: outputURL) }
 
         try writer.write(voxFile, to: outputURL)
@@ -179,6 +176,35 @@ final class VoxWriterTests: XCTestCase {
         let readBack = try reader.read(from: outputURL)
         XCTAssertEqual(readBack.manifest.voice.name, "AudioTest")
         XCTAssertEqual(readBack.manifest.referenceAudio?.count, 1)
+        XCTAssertEqual(readBack.referenceAudio.count, 1)
+        XCTAssertEqual(readBack.referenceAudio[audioFileName], audioContent)
+    }
+
+    func testWriteVoxFileWithEmbeddings() throws {
+        let manifest = VoxManifest(
+            voxVersion: "0.1.0",
+            id: UUID().uuidString,
+            created: Date(),
+            voice: VoxManifest.Voice(
+                name: "EmbeddingTest",
+                description: "A test voice with embeddings for archive creation."
+            )
+        )
+
+        let embeddingData = Data(repeating: 0xAB, count: 256)
+        let voxFile = VoxFile(
+            manifest: manifest,
+            embeddings: ["qwen3-tts/clone-prompt.bin": embeddingData]
+        )
+
+        let outputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("embedding-test-\(UUID().uuidString).vox")
+        defer { try? FileManager.default.removeItem(at: outputURL) }
+
+        try writer.write(voxFile, to: outputURL)
+
+        let readBack = try reader.read(from: outputURL)
+        XCTAssertEqual(readBack.embeddings["qwen3-tts/clone-prompt.bin"], embeddingData)
     }
 
     func testWriteOverwritesExistingFile() throws {
