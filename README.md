@@ -6,7 +6,7 @@
 
 ![Swift Tests](https://github.com/intrusive-memory/vox-format/actions/workflows/swift-tests.yml/badge.svg)
 
-**Status:** Draft Specification (v0.1.0)
+**Version:** 0.1.0
 **License:** [CC0 1.0 Universal](LICENSE) (Public Domain)
 
 VOX (`.vox`) is an open, vendor-neutral file format for persisting voice identities for text-to-speech synthesis. Think of it as a **headshot and voice reel** for AI voices — capturing everything needed to reproduce a consistent voice across different TTS engines.
@@ -129,22 +129,92 @@ Key sections:
 
 ---
 
+## Swift Package Manager
+
+Add VoxFormat as a dependency in your `Package.swift`:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/intrusive-memory/vox-format.git", from: "0.1.0"),
+]
+```
+
+Then add `VoxFormat` to your target's dependencies:
+
+```swift
+.target(
+    name: "YourApp",
+    dependencies: [
+        .product(name: "VoxFormat", package: "vox-format"),
+    ]
+)
+```
+
+**Platform requirements:** macOS 13+, iOS 16+, Swift 6.2+
+
+## Quick Start (Swift)
+
+```swift
+import VoxFormat
+
+// Read a .vox file
+let reader = VoxReader()
+let voxFile = try reader.read(from: URL(fileURLWithPath: "voice.vox"))
+print(voxFile.manifest.voice.name)
+
+// Create a .vox file
+let manifest = VoxManifest(
+    voxVersion: "0.1.0",
+    id: UUID().uuidString.lowercased(),
+    created: Date(),
+    voice: VoxManifest.Voice(
+        name: "NARRATOR",
+        description: "A warm, clear narrator voice for audiobooks."
+    )
+)
+let writer = VoxWriter()
+try writer.write(VoxFile(manifest: manifest), to: URL(fileURLWithPath: "output.vox"))
+
+// Validate
+let validator = VoxValidator()
+try validator.validate(voxFile.manifest)
+```
+
+## CLI Tool
+
+A command-line tool is included for working with `.vox` files:
+
+```bash
+# Inspect a .vox file
+vox-cli inspect voice.vox
+
+# Validate a .vox file
+vox-cli validate voice.vox
+
+# Create a .vox file
+vox-cli create --name "NARRATOR" --description "A warm narrator voice..." output.vox
+
+# Extract a .vox archive
+vox-cli extract voice.vox --output ./extracted/
+```
+
+See [`tools/vox-cli/`](tools/vox-cli/) for build instructions.
+
 ## Roadmap
 
-### Current Status (v0.1.0)
+### Shipped (v0.1.0)
 - ✅ Specification drafted
-- ⏳ Reference implementations (planned)
-- ⏳ Validation tools
-- ⏳ Example `.vox` files
+- ✅ JSON Schema for automated validation
+- ✅ Swift reference implementation (VoxReader, VoxWriter, VoxValidator)
+- ✅ CLI tool (inspect, validate, create, extract)
+- ✅ Example `.vox` files (minimal, character, multi-engine, voice library)
+- ✅ CI/CD with GitHub Actions (Swift tests + schema validation)
+- ✅ Swift Package Manager support (URL-based dependency)
+
+### Planned
+- ⏳ Reference implementation in Python (for broader adoption)
 - ⏳ SwiftEchada integration (`echada cast` command)
 - ⏳ SwiftVoxAlta `.vox` loader
-
-### Planned Features
-- JSON Schema for automated validation
-- Reference implementation in Swift (for SwiftEchada/VoxAlta)
-- Reference implementation in Python (for broader adoption)
-- CLI tools for creating/inspecting `.vox` files
-- Library of example voices (public domain characters)
 
 ---
 

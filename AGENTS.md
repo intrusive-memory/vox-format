@@ -61,14 +61,23 @@ Conforming readers MUST ignore unknown extensions.
 
 ## Implementation Status
 
-### Current State
+### Current State (v0.1.0)
 
 - ✅ Specification drafted (v0.1.0)
-- ⏳ Reference implementation (planned)
+- ✅ JSON Schema validation (`schemas/manifest-v0.1.0.json`)
+- ✅ Swift reference implementation (`implementations/swift/`)
+  - `VoxManifest` — Codable manifest model with snake_case JSON mapping
+  - `VoxFile` — In-memory container (manifest + reference audio + embeddings)
+  - `VoxReader` — Reads `.vox` ZIP archives directly into memory
+  - `VoxWriter` — Creates `.vox` ZIP archives from `VoxFile` instances
+  - `VoxValidator` — Validates manifests (permissive + strict modes)
+  - `VoxError` — Typed error hierarchy for all failure cases
+- ✅ CLI tool (`tools/vox-cli/`) — inspect, validate, create, extract commands
+- ✅ Example `.vox` files (`examples/`) — minimal, character, multi-engine, voice library
+- ✅ CI/CD — GitHub Actions with Swift tests + JSON Schema validation
+- ✅ SPM support — Root-level `Package.swift` for URL-based dependencies
 - ⏳ SwiftEchada integration (`echada cast` command)
 - ⏳ SwiftVoxAlta `.vox` loader
-- ⏳ Validation tools
-- ⏳ Example `.vox` files
 
 ### Integration Roadmap
 
@@ -80,9 +89,57 @@ Conforming readers MUST ignore unknown extensions.
 
 ## Common Patterns
 
-*(As we build implementations, document patterns here)*
+### Swift: Reading a VOX File
 
-### Creating a Minimal VOX File
+```swift
+import VoxFormat
+
+let reader = VoxReader()
+let voxFile = try reader.read(from: URL(fileURLWithPath: "voice.vox"))
+print(voxFile.manifest.voice.name)        // "NARRATOR"
+print(voxFile.manifest.voice.description)  // "A warm narrator voice..."
+
+// Access reference audio
+for (filename, data) in voxFile.referenceAudio {
+    print("\(filename): \(data.count) bytes")
+}
+
+// Access engine-specific embeddings
+if let prompt = voxFile.embeddings["qwen3-tts/clone-prompt.bin"] {
+    print("Clone prompt: \(prompt.count) bytes")
+}
+```
+
+### Swift: Creating a VOX File
+
+```swift
+import VoxFormat
+
+let manifest = VoxManifest(
+    voxVersion: "0.1.0",
+    id: UUID().uuidString.lowercased(),
+    created: Date(),
+    voice: VoxManifest.Voice(
+        name: "NARRATOR",
+        description: "A warm, clear narrator voice for audiobooks."
+    )
+)
+let voxFile = VoxFile(manifest: manifest)
+let writer = VoxWriter()
+try writer.write(voxFile, to: URL(fileURLWithPath: "narrator.vox"))
+```
+
+### Swift: Validating a Manifest
+
+```swift
+import VoxFormat
+
+let validator = VoxValidator()
+try validator.validate(voxFile.manifest)           // permissive (collects all errors)
+try validator.validate(voxFile.manifest, strict: true)  // strict (fails on first error)
+```
+
+### Creating a Minimal VOX File (JSON)
 
 ```json
 {
@@ -102,6 +159,14 @@ When multiple engines support the same voice:
 - Keep universal fields in root `voice` object
 - Add engine-specific data to `extensions.<provider>`
 - Use `--augment` pattern to add extensions without replacing existing ones
+
+### Key Implementation Notes
+
+- **In-memory model:** `VoxFile` holds all data in memory (no temp files). Binary assets are `Data` values in dictionaries.
+- **JSON key mapping:** Swift properties use camelCase, JSON uses snake_case (handled via `CodingKeys`).
+- **ZIP format:** Uses ZIPFoundation library. Archives verified by checking `PK\x03\x04` magic bytes after write.
+- **Date handling:** ISO 8601 encoding/decoding via `VoxManifest.encoder()` and `VoxManifest.decoder()`.
+- **Extensions:** Arbitrary JSON in `extensions` dictionary uses `AnyCodable` type-erased wrapper.
 
 ---
 
@@ -148,4 +213,4 @@ When updating this file:
 
 ---
 
-**Last Updated:** 2026-02-13
+**Last Updated:** 2026-02-18
