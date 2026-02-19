@@ -92,19 +92,22 @@ vox-format/
 ├── GEMINI.md              # This file (Gemini-specific)
 ├── README.md              # Public-facing project documentation
 ├── LICENSE                # CC0 1.0 for spec, TBD for code
+├── Package.swift          # Root-level SPM package (URL dependency support)
 ├── docs/
-│   ├── VOX-FORMAT.md      # Canonical specification
-│   └── ...                # Supporting documentation
+│   └── VOX-FORMAT.md      # Canonical specification
+├── schemas/
+│   └── manifest-v0.1.0.json  # JSON Schema for manifest validation
 ├── examples/              # Example .vox files
-│   ├── minimal.vox
-│   ├── character-with-audio.vox
-│   └── ...
-├── schemas/               # JSON Schema validation
-│   └── manifest-v0.1.0.json
-└── implementations/       # Reference implementations
-    ├── swift/
-    ├── python/
-    └── ...
+│   ├── minimal/           # Minimal voice example
+│   ├── character/         # Character with context
+│   ├── multi-engine/      # Cross-platform voice
+│   └── library/           # Voice library with search
+├── implementations/
+│   └── swift/             # Swift reference implementation
+│       ├── Sources/VoxFormat/
+│       └── Tests/VoxFormatTests/
+└── tools/
+    └── vox-cli/           # CLI tool (inspect, validate, create, extract)
 ```
 
 ---
@@ -208,4 +211,4 @@ Document findings in `AGENTS.md` for all agents to benefit from.
 
 ---
 
-**Last Updated:** 2026-02-13
+**Last Updated:** 2026-02-18
