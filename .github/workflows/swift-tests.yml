@@ -46,7 +46,7 @@ jobs:
               # Extract manifest.json from .vox (ZIP) file
               unzip -p "$voxfile" manifest.json > /tmp/manifest.json
               # Validate against schema
-              ajv validate -s schemas/manifest-v0.1.0.json -d /tmp/manifest.json
+              ajv validate --spec=draft2020 -s schemas/manifest-v0.1.0.json -d /tmp/manifest.json
               if [ $? -ne 0 ]; then
                 echo "❌ Validation failed for $voxfile"
                 exit 1
