@@ -1,7 +1,7 @@
 # VOX: Open Voice Identity Format
 
 **Status:** Draft / RFC  
-**Version:** 0.1.0  
+**Version:** 0.2.0  
 **Authors:** intrusive-memory  
 **Repository:** [SwiftEchada](https://github.com/intrusive-memory/SwiftEchada)
 
@@ -196,6 +196,63 @@ Reserved provider identifiers:
 | `google` | Google Cloud TTS |
 | `azure` | Microsoft Azure Speech |
 | `mlx-audio` | MLX Audio (Apple Silicon) |
+
+### Embedding Metadata (v0.2.0)
+
+The optional `embeddings` top-level object provides structured metadata about model-specific binary embeddings stored in the archive. This enables a single `.vox` file to carry embeddings for multiple model variants (e.g., a lightweight 0.6B model and a full-quality 1.7B model).
+
+Each key is a human-readable identifier, and the value describes the model that produced the embedding, the file path within the archive, and optional hints.
+
+```json
+"embeddings": {
+  "qwen3-tts-0.6b": {
+    "model": "Qwen/Qwen3-TTS-12Hz-0.6B",
+    "engine": "qwen3-tts",
+    "file": "embeddings/qwen3-tts/0.6b/clone-prompt.bin",
+    "format": "bin",
+    "description": "Clone prompt for lightweight 0.6B model"
+  },
+  "qwen3-tts-1.7b": {
+    "model": "Qwen/Qwen3-TTS-12Hz-1.7B",
+    "engine": "qwen3-tts",
+    "file": "embeddings/qwen3-tts/1.7b/clone-prompt.bin",
+    "format": "bin",
+    "description": "Clone prompt for full-quality 1.7B model"
+  }
+}
+```
+
+#### Embedding Entry Fields
+
+| Field | Required | Type | Description |
+|-------|----------|------|-------------|
+| `model` | Yes | string | Fully qualified model identifier (e.g., `"Qwen/Qwen3-TTS-12Hz-0.6B"`). |
+| `file` | Yes | string | Archive-relative path to the binary. Must start with `embeddings/`. |
+| `engine` | No | string | Engine namespace (e.g., `"qwen3-tts"`). Links to the `extensions` section. |
+| `format` | No | string | Binary format hint: `"bin"`, `"safetensors"`, `"onnx"`, etc. |
+| `description` | No | string | Human-readable note about this embedding. |
+
+#### Directory Structure for Multi-Model Embeddings
+
+```
+embeddings/
+  qwen3-tts/
+    0.6b/
+      clone-prompt.bin      ← per-variant subdirectory
+    1.7b/
+      clone-prompt.bin
+```
+
+#### Consumer API
+
+Implementations should provide query methods for model support:
+
+- `supportsModel("0.6b")` → `true` (substring match on key or model)
+- `supportsModel("Qwen/Qwen3-TTS-12Hz-1.7B")` → `true` (exact model match)
+- `supportedModels` → `["Qwen/Qwen3-TTS-12Hz-0.6B", "Qwen/Qwen3-TTS-12Hz-1.7B"]`
+- `embeddingData(for: "0.6b")` → binary `Data` for the 0.6B clone prompt
+
+The `embeddings` section is optional. Files without it remain valid — backward compatibility with v0.1.0 is preserved.
 
 ### Provenance
 

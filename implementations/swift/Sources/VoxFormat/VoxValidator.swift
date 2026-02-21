@@ -60,6 +60,9 @@ public final class VoxValidator {
         // Optional fields validation (VOX-047)
         validateOptionalFields(manifest, errors: &errors, strict: strict)
 
+        // Embedding entries validation
+        validateEmbeddingEntries(manifest, errors: &errors, strict: strict)
+
         // Throw collected errors in permissive mode
         if !errors.isEmpty {
             throw VoxError.validationErrors(errors)
@@ -203,6 +206,99 @@ public final class VoxValidator {
                     errors.append(error)
                 }
             }
+        }
+    }
+
+    // MARK: - Embedding Entries Validation
+
+    /// Validates embedding entries when they are present.
+    ///
+    /// Each entry must have a non-empty `model`, a non-empty `file` that starts
+    /// with `embeddings/`, and an optional `engine` that is non-empty if present.
+    private func validateEmbeddingEntries(
+        _ manifest: VoxManifest,
+        errors: inout [VoxError],
+        strict: Bool
+    ) {
+        guard let entries = manifest.embeddingEntries else { return }
+
+        for (key, entry) in entries {
+            if entry.model.trimmingCharacters(in: .whitespaces).isEmpty {
+                let error = VoxError.invalidEmbeddingEntry(
+                    key: key, reason: "model must not be empty"
+                )
+                if strict { errors.append(error); return }
+                errors.append(error)
+            }
+
+            let file = entry.file.trimmingCharacters(in: .whitespaces)
+            if file.isEmpty {
+                let error = VoxError.invalidEmbeddingEntry(
+                    key: key, reason: "file must not be empty"
+                )
+                if strict { errors.append(error); return }
+                errors.append(error)
+            } else if !file.hasPrefix("embeddings/") {
+                let error = VoxError.invalidEmbeddingEntry(
+                    key: key, reason: "file must start with 'embeddings/' (got '\(file)')"
+                )
+                if strict { errors.append(error); return }
+                errors.append(error)
+            }
+        }
+    }
+
+    // MARK: - Bundle Completeness Validation
+
+    /// Validates that a ``VoxFile`` bundle is complete: every declared embedding and
+    /// reference audio entry has its corresponding binary data present.
+    ///
+    /// - Parameters:
+    ///   - voxFile: The VoxFile to validate.
+    ///   - strict: If `true`, throws on the first missing file. If `false` (default),
+    ///             collects all missing files and throws them together.
+    /// - Throws: ``VoxError/validationErrors(_:)`` containing ``VoxError/missingBundledFile(declaredPath:section:)``
+    ///           for each missing binary.
+    public func validateBundle(_ voxFile: VoxFile, strict: Bool = false) throws {
+        var errors: [VoxError] = []
+
+        // Check embedding entries
+        if let entries = voxFile.manifest.embeddingEntries {
+            for (_, entry) in entries {
+                let relativePath = entry.file.hasPrefix("embeddings/")
+                    ? String(entry.file.dropFirst("embeddings/".count))
+                    : entry.file
+                if voxFile.embeddings[relativePath] == nil {
+                    let error = VoxError.missingBundledFile(
+                        declaredPath: entry.file, section: "embeddings"
+                    )
+                    if strict { throw error }
+                    errors.append(error)
+                }
+            }
+        }
+
+        // Check reference audio entries
+        if let refAudioEntries = voxFile.manifest.referenceAudio {
+            for entry in refAudioEntries {
+                let filename: String
+                if entry.file.hasPrefix("reference/") {
+                    filename = String(entry.file.dropFirst("reference/".count))
+                } else {
+                    filename = entry.file
+                }
+                if voxFile.referenceAudio[filename] == nil {
+                    let error = VoxError.missingBundledFile(
+                        declaredPath: entry.file, section: "reference_audio"
+                    )
+                    if strict { throw error }
+                    errors.append(error)
+                }
+            }
+        }
+
+        if !errors.isEmpty {
+            throw VoxError.validationErrors(errors)
         }
     }
 

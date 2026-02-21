@@ -61,9 +61,9 @@ Conforming readers MUST ignore unknown extensions.
 
 ## Implementation Status
 
-### Current State (v0.1.0)
+### Current State (v0.2.0)
 
-- ✅ Specification drafted (v0.1.0)
+- ✅ Specification drafted (v0.2.0 — adds multi-model embedding metadata)
 - ✅ JSON Schema validation (`schemas/manifest-v0.1.0.json`)
 - ✅ Swift reference implementation (`implementations/swift/`)
   - `VoxManifest` — Codable manifest model with snake_case JSON mapping
@@ -168,11 +168,34 @@ When multiple engines support the same voice:
 - **Date handling:** ISO 8601 encoding/decoding via `VoxManifest.encoder()` and `VoxManifest.decoder()`.
 - **Extensions:** Arbitrary JSON in `extensions` dictionary uses `AnyCodable` type-erased wrapper.
 
+### Multi-Model Embedding Support (v0.2.0, 2026-02-21)
+
+**Decision:** Added a structured `embeddings` top-level section to `manifest.json` that maps identifiers to model/file metadata. This is separate from the opaque `extensions` section.
+
+**Rationale:** Different model variants (e.g., 0.6B vs 1.7B) produce incompatible binary embeddings. The same voice needs to carry embeddings for multiple models. Storing this as first-class typed data (not buried in `extensions`) enables consumer APIs to query model support without knowing engine internals.
+
+**Key Types:**
+- `VoxManifest.EmbeddingEntry` — Codable struct with `model` (required), `file` (required), `engine`, `format`, `description`
+- `VoxModelQueryable` — Protocol providing `supportsModel(_:)`, `embeddingEntry(for:)`, `embeddingData(for:)`, `supportedModels`
+- `VoxFile` conforms to `VoxModelQueryable`
+
+**Matching Strategy:** `supportsModel()` uses cascading match: exact key → case-insensitive key → case-insensitive model contains → case-insensitive key contains.
+
+**Archive Layout:**
+```
+embeddings/
+  qwen3-tts/
+    0.6b/clone-prompt.bin
+    1.7b/clone-prompt.bin
+```
+
+**Backward Compatibility:** The `embeddings` manifest section is optional. Old `.vox` files (v0.1.0) without it parse without error. `VoxFile.embeddings: [String: Data]` (raw binary data dict) remains unchanged.
+
 ---
 
 ## Open Questions
 
-1. **Embedding portability:** Standard embedding format (fixed d-vector) vs. opaque engine extensions?
+1. **~~Embedding portability~~** — Resolved (v0.2.0): Structured `embeddings` manifest section provides model-aware metadata while keeping binary formats opaque. No standard d-vector format imposed.
 2. **Voice versioning:** Internal version history in `.vox` or file-level versioning (git)?
 3. **Multi-voice files:** Single `.vox` for entire cast or one-voice-per-file?
 4. **Streaming / partial load:** Ordering requirements for large files with multiple reference clips?
@@ -213,4 +236,4 @@ When updating this file:
 
 ---
 
-**Last Updated:** 2026-02-18
+**Last Updated:** 2026-02-21

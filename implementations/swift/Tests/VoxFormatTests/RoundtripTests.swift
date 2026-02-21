@@ -32,8 +32,8 @@ final class RoundtripTests: XCTestCase {
         // Read it back
         let readBack = try reader.read(from: outputURL)
 
-        // Compare all fields
-        XCTAssertEqual(readBack.manifest.voxVersion, originalManifest.voxVersion)
+        // Compare all fields — version is always stamped to current on write
+        XCTAssertEqual(readBack.manifest.voxVersion, VoxFormat.currentVersion)
         XCTAssertEqual(readBack.manifest.id, originalManifest.id)
         XCTAssertEqual(
             readBack.manifest.created.timeIntervalSince1970,
@@ -105,8 +105,8 @@ final class RoundtripTests: XCTestCase {
         try writer.write(originalVoxFile, to: outputURL)
         let readBack = try reader.read(from: outputURL)
 
-        // Compare all fields in detail
-        XCTAssertEqual(readBack.manifest.voxVersion, originalManifest.voxVersion)
+        // Compare all fields in detail — version is always stamped to current on write
+        XCTAssertEqual(readBack.manifest.voxVersion, VoxFormat.currentVersion)
         XCTAssertEqual(readBack.manifest.id, originalManifest.id)
         XCTAssertEqual(
             readBack.manifest.created.timeIntervalSince1970,

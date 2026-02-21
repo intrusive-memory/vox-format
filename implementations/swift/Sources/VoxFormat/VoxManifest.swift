@@ -23,8 +23,8 @@ import Foundation
 /// let data = try VoxManifest.encoder().encode(manifest)
 /// ```
 public struct VoxManifest: Codable {
-    /// Semantic version of the VOX format specification (e.g., `"0.1.0"`).
-    public let voxVersion: String
+    /// Semantic version of the VOX format specification (e.g., `"0.2.0"`).
+    public var voxVersion: String
 
     /// Unique identifier for this voice identity in UUID v4 format.
     public let id: String
@@ -50,6 +50,13 @@ public struct VoxManifest: Codable {
     /// Engine-specific extension data, keyed by provider namespace.
     public var extensions: [String: AnyCodable]?
 
+    /// Structured embedding metadata mapping identifiers to model/file metadata.
+    ///
+    /// Each key is a human-readable identifier (e.g., `"qwen3-tts-0.6b"`) and the value
+    /// describes which model produced the embedding, where the binary file lives in the
+    /// archive, and optional format/description hints.
+    public var embeddingEntries: [String: EmbeddingEntry]?
+
     private enum CodingKeys: String, CodingKey {
         case voxVersion = "vox_version"
         case id
@@ -60,6 +67,7 @@ public struct VoxManifest: Codable {
         case character
         case provenance
         case extensions
+        case embeddingEntries = "embeddings"
     }
 
     public init(
@@ -71,7 +79,8 @@ public struct VoxManifest: Codable {
         referenceAudio: [ReferenceAudio]? = nil,
         character: Character? = nil,
         provenance: Provenance? = nil,
-        extensions: [String: AnyCodable]? = nil
+        extensions: [String: AnyCodable]? = nil,
+        embeddingEntries: [String: EmbeddingEntry]? = nil
     ) {
         self.voxVersion = voxVersion
         self.id = id
@@ -82,6 +91,7 @@ public struct VoxManifest: Codable {
         self.character = character
         self.provenance = provenance
         self.extensions = extensions
+        self.embeddingEntries = embeddingEntries
     }
 }
 
@@ -349,6 +359,46 @@ extension VoxManifest {
             self.consent = consent
             self.license = license
             self.notes = notes
+        }
+    }
+}
+
+// MARK: - EmbeddingEntry
+
+extension VoxManifest {
+    /// Metadata for a single model-specific embedding within a `.vox` archive.
+    ///
+    /// Each `EmbeddingEntry` describes one binary embedding file and the model that produced it.
+    /// This enables a single `.vox` file to carry embeddings for multiple model variants
+    /// (e.g., a 0.6B lightweight model and a 1.7B full-quality model).
+    public struct EmbeddingEntry: Codable, Sendable, Equatable {
+        /// Fully qualified model identifier (e.g., `"Qwen/Qwen3-TTS-12Hz-0.6B"`).
+        public let model: String
+
+        /// Engine namespace this embedding belongs to (e.g., `"qwen3-tts"`).
+        public var engine: String?
+
+        /// Archive-relative path to the embedding binary (e.g., `"embeddings/qwen3-tts/0.6b/clone-prompt.bin"`).
+        public let file: String
+
+        /// Binary format hint (e.g., `"bin"`, `"safetensors"`, `"onnx"`).
+        public var format: String?
+
+        /// Human-readable note about this embedding.
+        public var description: String?
+
+        public init(
+            model: String,
+            engine: String? = nil,
+            file: String,
+            format: String? = nil,
+            description: String? = nil
+        ) {
+            self.model = model
+            self.engine = engine
+            self.file = file
+            self.format = format
+            self.description = description
         }
     }
 }

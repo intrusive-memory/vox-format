@@ -43,6 +43,80 @@ public struct VoxFile {
     /// When writing, each entry is written to `embeddings/<key>` in the archive.
     public let embeddings: [String: Data]
 
+    /// Whether this voice file has everything needed for synthesis.
+    public enum Readiness: Equatable, Sendable {
+        /// All declared embeddings and reference audio are present.
+        case ready
+        /// Embeddings are missing but can be regenerated from voice description + reference audio.
+        case needsRegeneration(missing: [String])
+        /// The file has fundamental problems (no voice description, invalid manifest).
+        case invalid(reasons: [String])
+    }
+
+    /// Assesses whether this VoxFile is complete and ready for synthesis.
+    public var readiness: Readiness {
+        var reasons: [String] = []
+
+        // Fundamental checks
+        let descLength = manifest.voice.description.trimmingCharacters(in: .whitespaces).count
+        if descLength < 10 {
+            reasons.append("Voice description is too short (\(descLength) chars, need >= 10)")
+        }
+        if manifest.voice.name.trimmingCharacters(in: .whitespaces).isEmpty {
+            reasons.append("Voice name is empty")
+        }
+
+        if !reasons.isEmpty {
+            return .invalid(reasons: reasons)
+        }
+
+        var missingEmbeddings: [String] = []
+
+        // Check each declared embedding entry has its binary
+        if let entries = manifest.embeddingEntries {
+            for (key, entry) in entries {
+                let relativePath = entry.file.hasPrefix("embeddings/")
+                    ? String(entry.file.dropFirst("embeddings/".count))
+                    : entry.file
+                if embeddings[relativePath] == nil {
+                    missingEmbeddings.append(key)
+                }
+            }
+        }
+
+        // Check each declared reference audio has its data
+        if let refAudioEntries = manifest.referenceAudio {
+            for entry in refAudioEntries {
+                let filename: String
+                if entry.file.hasPrefix("reference/") {
+                    filename = String(entry.file.dropFirst("reference/".count))
+                } else {
+                    filename = entry.file
+                }
+                if referenceAudio[filename] == nil {
+                    // Missing reference audio is more serious but still flaggable
+                    missingEmbeddings.append("reference:\(entry.file)")
+                }
+            }
+        }
+
+        if missingEmbeddings.isEmpty {
+            return .ready
+        }
+        return .needsRegeneration(missing: missingEmbeddings)
+    }
+
+    /// Convenience: `true` when `readiness == .ready`.
+    public var isReady: Bool {
+        readiness == .ready
+    }
+
+    /// Convenience: `true` when readiness is `.needsRegeneration`.
+    public var needsRegeneration: Bool {
+        if case .needsRegeneration = readiness { return true }
+        return false
+    }
+
     /// Creates a new `VoxFile` with the given manifest and data.
     ///
     /// - Parameters:

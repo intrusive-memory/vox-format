@@ -32,7 +32,10 @@ public final class VoxWriter {
     ///   - url: The destination file URL for the `.vox` archive.
     /// - Throws: ``VoxError/writeFailed(_:underlying:)`` if the archive cannot be created.
     public func write(_ voxFile: VoxFile, to url: URL) throws {
-        let manifestData = try encodeManifest(voxFile.manifest)
+        // Always stamp the current format version on write.
+        var manifest = voxFile.manifest
+        manifest.voxVersion = VoxFormat.currentVersion
+        let manifestData = try encodeManifest(manifest)
 
         // Remove existing file if present.
         if FileManager.default.fileExists(atPath: url.path) {
