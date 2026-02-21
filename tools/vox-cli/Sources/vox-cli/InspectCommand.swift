@@ -97,14 +97,38 @@ struct InspectCommand: ParsableCommand {
             }
             print()
 
-            // List actual files found
-            if !voxFile.referenceAudioURLs.isEmpty {
+            // List actual audio data found in archive
+            if !voxFile.referenceAudio.isEmpty {
                 print("  Found audio files:")
-                for url in voxFile.referenceAudioURLs {
-                    print("    ✓ \(url.lastPathComponent)")
+                for (filename, data) in voxFile.referenceAudio.sorted(by: { $0.key < $1.key }) {
+                    print("    ✓ \(filename) (\(formatBytes(data.count)))")
                 }
                 print()
             }
+        }
+
+        // Model Support (embedding entries)
+        if let entries = manifest.embeddingEntries, !entries.isEmpty {
+            print("🧠 Model Support (\(entries.count) embedding\(entries.count == 1 ? "" : "s"))")
+            for (key, entry) in entries.sorted(by: { $0.key < $1.key }) {
+                print("  [\(key)]")
+                print("    Model: \(entry.model)")
+                if let engine = entry.engine {
+                    print("    Engine: \(engine)")
+                }
+                print("    File: \(entry.file)")
+                if let format = entry.format {
+                    print("    Format: \(format)")
+                }
+                if let desc = entry.description {
+                    print("    Description: \(desc)")
+                }
+                // Show actual data size if available
+                if let data = voxFile.embeddingData(for: key) {
+                    print("    Data: \(formatBytes(data.count))")
+                }
+            }
+            print()
         }
 
         // Character
@@ -165,10 +189,22 @@ struct InspectCommand: ParsableCommand {
                 print("  • \(namespace)")
             }
             print()
+        }
 
-            // Check for embeddings directory
-            if let embeddingsDir = voxFile.extensionsDirectory {
-                print("  Embeddings directory: \(embeddingsDir.lastPathComponent)")
+        // Raw embeddings (files in archive not covered by embedding entries)
+        if !voxFile.embeddings.isEmpty {
+            let entryFiles = Set(manifest.embeddingEntries?.values.map { entry -> String in
+                let prefix = "embeddings/"
+                return entry.file.hasPrefix(prefix) ? String(entry.file.dropFirst(prefix.count)) : entry.file
+            } ?? [])
+            let unmapped = voxFile.embeddings.keys.filter { !entryFiles.contains($0) }.sorted()
+            if !unmapped.isEmpty {
+                print("📦 Raw Embeddings (no manifest entry)")
+                for key in unmapped {
+                    if let data = voxFile.embeddings[key] {
+                        print("  • embeddings/\(key) (\(formatBytes(data.count)))")
+                    }
+                }
                 print()
             }
         }
@@ -179,5 +215,15 @@ struct InspectCommand: ParsableCommand {
     private func formatDate(_ date: Date) -> String {
         let formatter = ISO8601DateFormatter()
         return formatter.string(from: date)
+    }
+
+    private func formatBytes(_ count: Int) -> String {
+        if count < 1024 {
+            return "\(count) B"
+        } else if count < 1024 * 1024 {
+            return String(format: "%.1f KB", Double(count) / 1024.0)
+        } else {
+            return String(format: "%.1f MB", Double(count) / (1024.0 * 1024.0))
+        }
     }
 }

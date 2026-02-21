@@ -77,7 +77,7 @@ final class VoxReaderTests: XCTestCase {
         )
 
         let voxFile = try reader.read(from: url)
-        XCTAssertEqual(voxFile.manifest.voxVersion, "0.1.0")
+        XCTAssertEqual(voxFile.manifest.voxVersion, VoxFormat.currentVersion)
         XCTAssertEqual(voxFile.manifest.voice.name, "Narrator")
     }
 
@@ -107,7 +107,7 @@ final class VoxReaderTests: XCTestCase {
         let url = exampleURL("examples/minimal/narrator.vox")
         let voxFile = try reader.read(from: url)
 
-        XCTAssertEqual(voxFile.manifest.voxVersion, "0.1.0")
+        XCTAssertEqual(voxFile.manifest.voxVersion, VoxFormat.currentVersion)
         XCTAssertEqual(voxFile.manifest.id, "ad7aa7d7-570d-4f9e-99da-1bd14b99cc78")
         XCTAssertEqual(voxFile.manifest.voice.name, "Narrator")
         XCTAssertNil(voxFile.manifest.prosody)
@@ -118,7 +118,7 @@ final class VoxReaderTests: XCTestCase {
         let url = exampleURL("examples/character/narrator-with-context.vox")
         let voxFile = try reader.read(from: url)
 
-        XCTAssertEqual(voxFile.manifest.voxVersion, "0.1.0")
+        XCTAssertEqual(voxFile.manifest.voxVersion, VoxFormat.currentVersion)
         XCTAssertEqual(voxFile.manifest.voice.name, "NARRATOR")
         XCTAssertEqual(voxFile.manifest.voice.language, "en-GB")
         XCTAssertNotNil(voxFile.manifest.prosody)
@@ -192,7 +192,7 @@ final class VoxReaderTests: XCTestCase {
         let url = exampleURL("examples/minimal/narrator.vox")
         let voxFile = try reader.read(from: url)
 
-        XCTAssertEqual(voxFile.manifest.voxVersion, "0.1.0")
+        XCTAssertEqual(voxFile.manifest.voxVersion, VoxFormat.currentVersion)
         XCTAssertEqual(voxFile.manifest.voice.name, "Narrator")
         XCTAssertTrue(voxFile.referenceAudio.isEmpty)
         XCTAssertTrue(voxFile.embeddings.isEmpty)
@@ -202,7 +202,7 @@ final class VoxReaderTests: XCTestCase {
         let url = exampleURL("examples/character/narrator-with-context.vox")
         let voxFile = try reader.read(from: url)
 
-        XCTAssertEqual(voxFile.manifest.voxVersion, "0.1.0")
+        XCTAssertEqual(voxFile.manifest.voxVersion, VoxFormat.currentVersion)
         XCTAssertEqual(voxFile.manifest.voice.name, "NARRATOR")
         XCTAssertEqual(voxFile.manifest.voice.language, "en-GB")
         XCTAssertNotNil(voxFile.manifest.character)
@@ -253,7 +253,7 @@ final class VoxReaderTests: XCTestCase {
             }
 
             let voxFile = try reader.read(from: url)
-            XCTAssertEqual(voxFile.manifest.voxVersion, "0.1.0", "Version mismatch in \(example)")
+            XCTAssertEqual(voxFile.manifest.voxVersion, VoxFormat.currentVersion, "Version mismatch in \(example)")
             XCTAssertFalse(
                 voxFile.manifest.voice.name.isEmpty,
                 "Voice name should not be empty in \(example)"

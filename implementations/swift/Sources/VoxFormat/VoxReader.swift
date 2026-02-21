@@ -77,10 +77,13 @@ public final class VoxReader {
             }
         }
 
-        return VoxFile(
+        let parsed = VoxFile(
             manifest: manifest,
             referenceAudio: referenceAudio,
             embeddings: embeddings
         )
+
+        // Silently upgrade to current format version.
+        return VoxMigrator.migrate(parsed)
     }
 }
