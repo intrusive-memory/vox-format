@@ -11,9 +11,9 @@ struct CreateCommand: ParsableCommand {
         Optionally specify language, gender, and other voice attributes.
 
         Examples:
-          vox-cli create --name "Narrator" --description "A warm, clear narrator voice" --output narrator.vox
-          vox-cli create --name "PROTAGONIST" --description "Young adult protagonist, energetic" --language "en-US" --gender "neutral" --output protagonist.vox
-          vox-cli create --name "Doc" --description "Documentary narrator, authoritative British accent" --language "en-GB" --output documentary.vox
+          vox create --name "Narrator" --description "A warm, clear narrator voice" --output narrator.vox
+          vox create --name "PROTAGONIST" --description "Young adult protagonist, energetic" --language "en-US" --gender "neutral" --output protagonist.vox
+          vox create --name "Doc" --description "Documentary narrator, authoritative British accent" --language "en-GB" --output documentary.vox
         """
     )
 
