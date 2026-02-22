@@ -36,11 +36,19 @@ final class EmbeddingEntryTests: XCTestCase {
             )
         ]
         let manifest = makeManifest(embeddingEntries: entries)
-        let embeddings: [String: Data] = [
-            "qwen3-tts/0.6b/clone-prompt.bin": Data([0x00, 0x01, 0x02, 0x03]),
-            "qwen3-tts/1.7b/clone-prompt.bin": Data([0x10, 0x11, 0x12, 0x13, 0x14])
-        ]
-        return VoxFile(manifest: manifest, embeddings: embeddings)
+        let vox = VoxFile(manifest: manifest)
+        // Add embedding data directly via internal storage
+        try? vox.add(Data([0x00, 0x01, 0x02, 0x03]), at: "embeddings/qwen3-tts/0.6b/clone-prompt.bin", metadata: [
+            "model": "Qwen/Qwen3-TTS-12Hz-0.6B",
+            "engine": "qwen3-tts",
+            "key": "qwen3-tts-0.6b"
+        ])
+        try? vox.add(Data([0x10, 0x11, 0x12, 0x13, 0x14]), at: "embeddings/qwen3-tts/1.7b/clone-prompt.bin", metadata: [
+            "model": "Qwen/Qwen3-TTS-12Hz-1.7B",
+            "engine": "qwen3-tts",
+            "key": "qwen3-tts-1.7b"
+        ])
+        return vox
     }
 
     // MARK: - Decoding Tests
@@ -146,12 +154,11 @@ final class EmbeddingEntryTests: XCTestCase {
         let jsonData = try VoxManifest.encoder().encode(manifest)
         let jsonString = String(data: jsonData, encoding: .utf8)!
 
-        // JSON key should be "embeddings", not "embeddingEntries"
         XCTAssertTrue(jsonString.contains("\"embeddings\""))
         XCTAssertFalse(jsonString.contains("embeddingEntries"))
     }
 
-    // MARK: - VoxModelQueryable Tests
+    // MARK: - Model Query Tests
 
     func testSupportsModel_ExactKeyMatch() {
         let vox = makeVoxFileWithEmbeddings()
@@ -237,8 +244,9 @@ final class EmbeddingEntryTests: XCTestCase {
             )
         ]
         let manifest = makeManifest(embeddingEntries: entries)
-        let validator = VoxValidator()
-        XCTAssertNoThrow(try validator.validate(manifest))
+        let vox = VoxFile(manifest: manifest)
+        let errors = vox.validate().filter { $0.severity == .error }
+        XCTAssertTrue(errors.isEmpty)
     }
 
     func testValidatorRejectsEmptyModel() throws {
@@ -249,20 +257,11 @@ final class EmbeddingEntryTests: XCTestCase {
             )
         ]
         let manifest = makeManifest(embeddingEntries: entries)
-        let validator = VoxValidator()
+        let vox = VoxFile(manifest: manifest)
 
-        XCTAssertThrowsError(try validator.validate(manifest)) { error in
-            guard case VoxError.validationErrors(let errors) = error else {
-                XCTFail("Expected validationErrors"); return
-            }
-            let hasEmbeddingError = errors.contains { e in
-                if case .invalidEmbeddingEntry(let key, let reason) = e {
-                    return key == "bad-entry" && reason.contains("model")
-                }
-                return false
-            }
-            XCTAssertTrue(hasEmbeddingError)
-        }
+        let issues = vox.validate()
+        let hasEmbeddingError = issues.contains { $0.severity == .error && ($0.field?.contains("bad-entry") ?? false) }
+        XCTAssertTrue(hasEmbeddingError)
     }
 
     func testValidatorRejectsEmptyFile() throws {
@@ -273,20 +272,11 @@ final class EmbeddingEntryTests: XCTestCase {
             )
         ]
         let manifest = makeManifest(embeddingEntries: entries)
-        let validator = VoxValidator()
+        let vox = VoxFile(manifest: manifest)
 
-        XCTAssertThrowsError(try validator.validate(manifest)) { error in
-            guard case VoxError.validationErrors(let errors) = error else {
-                XCTFail("Expected validationErrors"); return
-            }
-            let hasEmbeddingError = errors.contains { e in
-                if case .invalidEmbeddingEntry(_, let reason) = e {
-                    return reason.contains("file")
-                }
-                return false
-            }
-            XCTAssertTrue(hasEmbeddingError)
-        }
+        let issues = vox.validate()
+        let hasEmbeddingError = issues.contains { $0.severity == .error && ($0.field?.contains("bad-entry") ?? false) }
+        XCTAssertTrue(hasEmbeddingError)
     }
 
     func testValidatorRejectsBadFilePath() throws {
@@ -297,25 +287,17 @@ final class EmbeddingEntryTests: XCTestCase {
             )
         ]
         let manifest = makeManifest(embeddingEntries: entries)
-        let validator = VoxValidator()
+        let vox = VoxFile(manifest: manifest)
 
-        XCTAssertThrowsError(try validator.validate(manifest)) { error in
-            guard case VoxError.validationErrors(let errors) = error else {
-                XCTFail("Expected validationErrors"); return
-            }
-            let hasEmbeddingError = errors.contains { e in
-                if case .invalidEmbeddingEntry(_, let reason) = e {
-                    return reason.contains("embeddings/")
-                }
-                return false
-            }
-            XCTAssertTrue(hasEmbeddingError)
-        }
+        let issues = vox.validate()
+        let hasEmbeddingError = issues.contains { $0.severity == .error && $0.message.contains("embeddings/") }
+        XCTAssertTrue(hasEmbeddingError)
     }
 
     func testValidatorAcceptsNoEmbeddingEntries() throws {
         let manifest = makeManifest(embeddingEntries: nil)
-        let validator = VoxValidator()
-        XCTAssertNoThrow(try validator.validate(manifest))
+        let vox = VoxFile(manifest: manifest)
+        let errors = vox.validate().filter { $0.severity == .error }
+        XCTAssertTrue(errors.isEmpty)
     }
 }

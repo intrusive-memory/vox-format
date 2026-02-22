@@ -59,6 +59,12 @@ public enum VoxError: Error, LocalizedError {
     /// Multiple validation errors occurred.
     case validationErrors([VoxError])
 
+    /// An archive path is invalid (empty or reserved).
+    case invalidPath(String, reason: String)
+
+    /// A required metadata key is missing for an entry.
+    case missingRequiredMetadata(path: String, key: String)
+
     public var errorDescription: String? {
         switch self {
         case .invalidZipFile(let url, let underlying):
@@ -108,6 +114,10 @@ public enum VoxError: Error, LocalizedError {
         case .validationErrors(let errors):
             let descriptions = errors.compactMap { $0.errorDescription }
             return "Validation failed with \(errors.count) error(s):\n" + descriptions.joined(separator: "\n")
+        case .invalidPath(let path, let reason):
+            return "Invalid path '\(path)': \(reason)"
+        case .missingRequiredMetadata(let path, let key):
+            return "Missing required metadata '\(key)' for entry at '\(path)'"
         }
     }
 }

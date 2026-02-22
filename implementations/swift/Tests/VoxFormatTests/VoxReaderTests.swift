@@ -3,18 +3,15 @@ import XCTest
 
 final class VoxReaderTests: XCTestCase {
 
-    let reader = VoxReader()
-
     // MARK: - Helper: Locate example files
 
-    /// Returns the URL for an example .vox file relative to the repository root.
     private func exampleURL(_ relativePath: String) -> URL {
         let swiftDir = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent() // Tests/VoxFormatTests/
-            .deletingLastPathComponent() // Tests/
-            .deletingLastPathComponent() // swift/
-            .deletingLastPathComponent() // implementations/
-            .deletingLastPathComponent() // vox-format/
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
 
         return swiftDir.appendingPathComponent(relativePath)
     }
@@ -28,10 +25,7 @@ final class VoxReaderTests: XCTestCase {
             .appendingPathComponent("zipwork-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: workDir, withIntermediateDirectories: true)
 
-        // Write the file
         let fileURL = workDir.appendingPathComponent(fileName)
-
-        // Create parent directories if needed
         let parentDir = fileURL.deletingLastPathComponent()
         if parentDir.path != workDir.path {
             try FileManager.default.createDirectory(at: parentDir, withIntermediateDirectories: true)
@@ -39,7 +33,6 @@ final class VoxReaderTests: XCTestCase {
 
         try content.write(to: fileURL, atomically: true, encoding: .utf8)
 
-        // Create ZIP using system command
         let zipURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("test-\(UUID().uuidString).vox")
 
@@ -53,7 +46,6 @@ final class VoxReaderTests: XCTestCase {
         try process.run()
         process.waitUntilExit()
 
-        // Clean up work dir
         try? FileManager.default.removeItem(at: workDir)
 
         guard process.terminationStatus == 0 else {
@@ -67,7 +59,7 @@ final class VoxReaderTests: XCTestCase {
         return zipURL
     }
 
-    // MARK: - VOX-036: ZIP Reading Tests
+    // MARK: - ZIP Reading Tests
 
     func testReadValidVoxFile() throws {
         let url = exampleURL("examples/minimal/narrator.vox")
@@ -76,7 +68,7 @@ final class VoxReaderTests: XCTestCase {
             "Example file narrator.vox should exist at \(url.path)"
         )
 
-        let voxFile = try reader.read(from: url)
+        let voxFile = try VoxFile(contentsOf: url)
         XCTAssertEqual(voxFile.manifest.voxVersion, VoxFormat.currentVersion)
         XCTAssertEqual(voxFile.manifest.voice.name, "Narrator")
     }
@@ -89,23 +81,23 @@ final class VoxReaderTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: fakeVox) }
 
         do {
-            _ = try reader.read(from: fakeVox)
+            _ = try VoxFile(contentsOf: fakeVox)
             XCTFail("Expected VoxError.invalidZipFile to be thrown")
         } catch let error as VoxError {
             switch error {
             case .invalidZipFile:
-                break // Expected
+                break
             default:
                 XCTFail("Expected VoxError.invalidZipFile, got \(error)")
             }
         }
     }
 
-    // MARK: - VOX-037: Manifest Parsing Tests
+    // MARK: - Manifest Parsing Tests
 
     func testReadMinimalManifest() throws {
         let url = exampleURL("examples/minimal/narrator.vox")
-        let voxFile = try reader.read(from: url)
+        let voxFile = try VoxFile(contentsOf: url)
 
         XCTAssertEqual(voxFile.manifest.voxVersion, VoxFormat.currentVersion)
         XCTAssertEqual(voxFile.manifest.id, "ad7aa7d7-570d-4f9e-99da-1bd14b99cc78")
@@ -116,7 +108,7 @@ final class VoxReaderTests: XCTestCase {
 
     func testReadCharacterManifestWithContext() throws {
         let url = exampleURL("examples/character/narrator-with-context.vox")
-        let voxFile = try reader.read(from: url)
+        let voxFile = try VoxFile(contentsOf: url)
 
         XCTAssertEqual(voxFile.manifest.voxVersion, VoxFormat.currentVersion)
         XCTAssertEqual(voxFile.manifest.voice.name, "NARRATOR")
@@ -130,7 +122,7 @@ final class VoxReaderTests: XCTestCase {
 
     func testReadMultiEngineManifest() throws {
         let url = exampleURL("examples/multi-engine/cross-platform.vox")
-        let voxFile = try reader.read(from: url)
+        let voxFile = try VoxFile(contentsOf: url)
 
         XCTAssertEqual(voxFile.manifest.voice.name, "VERSATILE")
         XCTAssertNotNil(voxFile.manifest.extensions)
@@ -145,12 +137,12 @@ final class VoxReaderTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: zipURL) }
 
         do {
-            _ = try reader.read(from: zipURL)
+            _ = try VoxFile(contentsOf: zipURL)
             XCTFail("Expected VoxError.manifestNotFound to be thrown")
         } catch let error as VoxError {
             switch error {
             case .manifestNotFound:
-                break // Expected
+                break
             default:
                 XCTFail("Expected VoxError.manifestNotFound, got \(error)")
             }
@@ -165,42 +157,42 @@ final class VoxReaderTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: zipURL) }
 
         do {
-            _ = try reader.read(from: zipURL)
+            _ = try VoxFile(contentsOf: zipURL)
             XCTFail("Expected VoxError.invalidJSON to be thrown")
         } catch let error as VoxError {
             switch error {
             case .invalidJSON:
-                break // Expected
+                break
             default:
                 XCTFail("Expected VoxError.invalidJSON, got \(error)")
             }
         }
     }
 
-    // MARK: - VOX-038: Reference Audio Tests
+    // MARK: - Reference Audio Tests
 
     func testReadMinimalVoxHasNoReferenceAudio() throws {
         let url = exampleURL("examples/minimal/narrator.vox")
-        let voxFile = try reader.read(from: url)
+        let voxFile = try VoxFile(contentsOf: url)
 
-        XCTAssertTrue(voxFile.referenceAudio.isEmpty, "Minimal manifest has no reference audio")
+        XCTAssertTrue(voxFile.entries(under: "reference/").isEmpty, "Minimal manifest has no reference audio")
     }
 
-    // MARK: - VOX-040: Complete VoxReader Tests
+    // MARK: - Complete VoxFile Tests
 
     func testReadMinimalVox() throws {
         let url = exampleURL("examples/minimal/narrator.vox")
-        let voxFile = try reader.read(from: url)
+        let voxFile = try VoxFile(contentsOf: url)
 
         XCTAssertEqual(voxFile.manifest.voxVersion, VoxFormat.currentVersion)
         XCTAssertEqual(voxFile.manifest.voice.name, "Narrator")
-        XCTAssertTrue(voxFile.referenceAudio.isEmpty)
-        XCTAssertTrue(voxFile.embeddings.isEmpty)
+        XCTAssertTrue(voxFile.entries(under: "reference/").isEmpty)
+        XCTAssertTrue(voxFile.entries(under: "embeddings/").isEmpty)
     }
 
     func testReadCharacterWithContextVox() throws {
         let url = exampleURL("examples/character/narrator-with-context.vox")
-        let voxFile = try reader.read(from: url)
+        let voxFile = try VoxFile(contentsOf: url)
 
         XCTAssertEqual(voxFile.manifest.voxVersion, VoxFormat.currentVersion)
         XCTAssertEqual(voxFile.manifest.voice.name, "NARRATOR")
@@ -211,7 +203,7 @@ final class VoxReaderTests: XCTestCase {
 
     func testReadMultiEngineVox() throws {
         let url = exampleURL("examples/multi-engine/cross-platform.vox")
-        let voxFile = try reader.read(from: url)
+        let voxFile = try VoxFile(contentsOf: url)
 
         XCTAssertEqual(voxFile.manifest.voice.name, "VERSATILE")
         XCTAssertNotNil(voxFile.manifest.extensions)
@@ -225,14 +217,14 @@ final class VoxReaderTests: XCTestCase {
         FileManager.default.createFile(atPath: fakeVox.path, contents: content)
         defer { try? FileManager.default.removeItem(at: fakeVox) }
 
-        XCTAssertThrowsError(try reader.read(from: fakeVox)) { error in
+        XCTAssertThrowsError(try VoxFile(contentsOf: fakeVox)) { error in
             guard let voxError = error as? VoxError else {
                 XCTFail("Expected VoxError, got \(type(of: error))")
                 return
             }
             switch voxError {
             case .invalidZipFile:
-                break // Expected
+                break
             default:
                 XCTFail("Expected VoxError.invalidZipFile, got \(voxError)")
             }
@@ -252,7 +244,7 @@ final class VoxReaderTests: XCTestCase {
                 continue
             }
 
-            let voxFile = try reader.read(from: url)
+            let voxFile = try VoxFile(contentsOf: url)
             XCTAssertEqual(voxFile.manifest.voxVersion, VoxFormat.currentVersion, "Version mismatch in \(example)")
             XCTAssertFalse(
                 voxFile.manifest.voice.name.isEmpty,

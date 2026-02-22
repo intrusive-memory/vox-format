@@ -172,11 +172,10 @@ final class ManifestDecodingTests: XCTestCase {
     // MARK: - Encoding Tests
 
     func testRoundtripEncodingDecoding() throws {
-        // Create a VoxManifest programmatically
         let originalManifest = VoxManifest(
             voxVersion: "0.1.0",
             id: "12345678-1234-4234-8234-123456789abc",
-            created: Date(timeIntervalSince1970: 1707825600), // 2024-02-13T12:00:00Z
+            created: Date(timeIntervalSince1970: 1707825600),
             voice: VoxManifest.Voice(
                 name: "TestVoice",
                 description: "A test voice for roundtrip encoding and decoding verification.",
@@ -220,28 +219,21 @@ final class ManifestDecodingTests: XCTestCase {
             )
         )
 
-        // Encode to JSON
         let encoder = VoxManifest.encoder()
         let jsonData = try encoder.encode(originalManifest)
 
-        // Verify it's valid JSON
         XCTAssertNoThrow(try JSONSerialization.jsonObject(with: jsonData))
 
-        // Decode back
         let decoder = VoxManifest.decoder()
         let decodedManifest = try decoder.decode(VoxManifest.self, from: jsonData)
 
-        // Verify all fields match
         XCTAssertEqual(decodedManifest.voxVersion, originalManifest.voxVersion)
         XCTAssertEqual(decodedManifest.id, originalManifest.id)
-
-        // Date comparison with tolerance for encoding precision
         XCTAssertEqual(
             decodedManifest.created.timeIntervalSince1970,
             originalManifest.created.timeIntervalSince1970,
             accuracy: 1.0
         )
-
         XCTAssertEqual(decodedManifest.voice.name, originalManifest.voice.name)
         XCTAssertEqual(decodedManifest.voice.description, originalManifest.voice.description)
         XCTAssertEqual(decodedManifest.voice.language, originalManifest.voice.language)
@@ -290,13 +282,11 @@ final class ManifestDecodingTests: XCTestCase {
         let jsonData = try encoder.encode(manifest)
         let jsonString = String(data: jsonData, encoding: .utf8)!
 
-        // Verify snake_case keys are used in JSON
         XCTAssertTrue(jsonString.contains("vox_version"))
         XCTAssertTrue(jsonString.contains("age_range"))
         XCTAssertTrue(jsonString.contains("pitch_base"))
         XCTAssertTrue(jsonString.contains("emotion_default"))
 
-        // Verify Swift property names are NOT in JSON
         XCTAssertFalse(jsonString.contains("voxVersion"))
         XCTAssertFalse(jsonString.contains("ageRange"))
         XCTAssertFalse(jsonString.contains("pitchBase"))
