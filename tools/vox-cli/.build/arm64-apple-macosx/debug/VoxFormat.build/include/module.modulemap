@@ -1,3 +1,0 @@
-module VoxFormat {
-    header "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/debug/VoxFormat.build/include/VoxFormat-Swift.h"
-}

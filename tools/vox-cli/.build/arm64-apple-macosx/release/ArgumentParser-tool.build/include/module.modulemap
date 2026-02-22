@@ -1,3 +1,0 @@
-module ArgumentParser {
-    header "/Users/stovak/Projects/vox-format/tools/vox-cli/.build/arm64-apple-macosx/release/ArgumentParser-tool.build/include/ArgumentParser-Swift.h"
-}
