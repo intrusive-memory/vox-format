@@ -25,12 +25,9 @@ struct InspectCommand: ParsableCommand {
     mutating func run() throws {
         let fileURL = URL(fileURLWithPath: file)
 
-        // Read the .vox file
-        let reader = VoxReader()
-        let voxFile = try reader.read(from: fileURL)
+        let voxFile = try VoxFile(contentsOf: fileURL)
         let manifest = voxFile.manifest
 
-        // Print header
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         print("VOX File: \(fileURL.lastPathComponent)")
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -47,38 +44,20 @@ struct InspectCommand: ParsableCommand {
         print("🎤 Voice Identity")
         print("  Name: \(manifest.voice.name)")
         print("  Description: \(manifest.voice.description)")
-        if let language = manifest.voice.language {
-            print("  Language: \(language)")
-        }
-        if let gender = manifest.voice.gender {
-            print("  Gender: \(gender)")
-        }
-        if let ageRange = manifest.voice.ageRange {
-            print("  Age Range: \(ageRange[0])-\(ageRange[1])")
-        }
-        if let tags = manifest.voice.tags, !tags.isEmpty {
-            print("  Tags: \(tags.joined(separator: ", "))")
-        }
+        if let language = manifest.voice.language { print("  Language: \(language)") }
+        if let gender = manifest.voice.gender { print("  Gender: \(gender)") }
+        if let ageRange = manifest.voice.ageRange { print("  Age Range: \(ageRange[0])-\(ageRange[1])") }
+        if let tags = manifest.voice.tags, !tags.isEmpty { print("  Tags: \(tags.joined(separator: ", "))") }
         print()
 
         // Prosody
         if let prosody = manifest.prosody {
             print("🎵 Prosody")
-            if let pitchBase = prosody.pitchBase {
-                print("  Pitch Base: \(pitchBase)")
-            }
-            if let pitchRange = prosody.pitchRange {
-                print("  Pitch Range: \(pitchRange)")
-            }
-            if let rate = prosody.rate {
-                print("  Rate: \(rate)")
-            }
-            if let energy = prosody.energy {
-                print("  Energy: \(energy)")
-            }
-            if let emotion = prosody.emotionDefault {
-                print("  Default Emotion: \(emotion)")
-            }
+            if let pitchBase = prosody.pitchBase { print("  Pitch Base: \(pitchBase)") }
+            if let pitchRange = prosody.pitchRange { print("  Pitch Range: \(pitchRange)") }
+            if let rate = prosody.rate { print("  Rate: \(rate)") }
+            if let energy = prosody.energy { print("  Energy: \(energy)") }
+            if let emotion = prosody.emotionDefault { print("  Default Emotion: \(emotion)") }
             print()
         }
 
@@ -88,51 +67,50 @@ struct InspectCommand: ParsableCommand {
             for (index, audio) in refAudio.enumerated() {
                 print("  [\(index + 1)] \(audio.file)")
                 print("      Transcript: \"\(audio.transcript.prefix(60))\(audio.transcript.count > 60 ? "..." : "")\"")
-                if let language = audio.language {
-                    print("      Language: \(language)")
-                }
-                if let duration = audio.durationSeconds {
-                    print("      Duration: \(String(format: "%.1f", duration))s")
-                }
+                if let language = audio.language { print("      Language: \(language)") }
+                if let duration = audio.durationSeconds { print("      Duration: \(String(format: "%.1f", duration))s") }
             }
             print()
 
-            // List actual files found
-            if !voxFile.referenceAudioURLs.isEmpty {
+            let refEntries = voxFile.entries(under: "reference/")
+            if !refEntries.isEmpty {
                 print("  Found audio files:")
-                for url in voxFile.referenceAudioURLs {
-                    print("    ✓ \(url.lastPathComponent)")
+                for entry in refEntries.sorted(by: { $0.path < $1.path }) {
+                    print("    ✓ \(entry.path) (\(formatBytes(entry.data.count)))")
                 }
                 print()
             }
         }
 
+        // Model Support (embedding entries)
+        if let entries = manifest.embeddingEntries, !entries.isEmpty {
+            print("🧠 Model Support (\(entries.count) embedding\(entries.count == 1 ? "" : "s"))")
+            for (key, entry) in entries.sorted(by: { $0.key < $1.key }) {
+                print("  [\(key)]")
+                print("    Model: \(entry.model)")
+                if let engine = entry.engine { print("    Engine: \(engine)") }
+                print("    File: \(entry.file)")
+                if let format = entry.format { print("    Format: \(format)") }
+                if let desc = entry.description { print("    Description: \(desc)") }
+                if let data = voxFile.embeddingData(for: key) { print("    Data: \(formatBytes(data.count))") }
+            }
+            print()
+        }
+
         // Character
         if let character = manifest.character {
             print("🎭 Character Context")
-            if let role = character.role {
-                print("  Role: \(role)")
-            }
-            if let emotions = character.emotionalRange, !emotions.isEmpty {
-                print("  Emotional Range: \(emotions.joined(separator: ", "))")
-            }
+            if let role = character.role { print("  Role: \(role)") }
+            if let emotions = character.emotionalRange, !emotions.isEmpty { print("  Emotional Range: \(emotions.joined(separator: ", "))") }
             if let relationships = character.relationships, !relationships.isEmpty {
                 print("  Relationships:")
-                for (name, relationship) in relationships {
-                    print("    • \(name): \(relationship)")
-                }
+                for (name, relationship) in relationships { print("    • \(name): \(relationship)") }
             }
             if let source = character.source {
                 print("  Source:")
-                if let work = source.work {
-                    print("    Work: \(work)")
-                }
-                if let format = source.format {
-                    print("    Format: \(format)")
-                }
-                if let file = source.file {
-                    print("    File: \(file)")
-                }
+                if let work = source.work { print("    Work: \(work)") }
+                if let format = source.format { print("    Format: \(format)") }
+                if let file = source.file { print("    File: \(file)") }
             }
             print()
         }
@@ -140,35 +118,31 @@ struct InspectCommand: ParsableCommand {
         // Provenance
         if let provenance = manifest.provenance {
             print("📜 Provenance")
-            if let method = provenance.method {
-                print("  Method: \(method)")
-            }
-            if let engine = provenance.engine {
-                print("  Engine: \(engine)")
-            }
-            if let consent = provenance.consent {
-                print("  Consent: \(consent)")
-            }
-            if let license = provenance.license {
-                print("  License: \(license)")
-            }
-            if let notes = provenance.notes {
-                print("  Notes: \(notes)")
-            }
+            if let method = provenance.method { print("  Method: \(method)") }
+            if let engine = provenance.engine { print("  Engine: \(engine)") }
+            if let consent = provenance.consent { print("  Consent: \(consent)") }
+            if let license = provenance.license { print("  License: \(license)") }
+            if let notes = provenance.notes { print("  Notes: \(notes)") }
             print()
         }
 
         // Extensions
         if let extensions = manifest.extensions, !extensions.isEmpty {
             print("🔌 Extensions (\(extensions.count) namespace\(extensions.count == 1 ? "" : "s"))")
-            for (namespace, _) in extensions.sorted(by: { $0.key < $1.key }) {
-                print("  • \(namespace)")
-            }
+            for (namespace, _) in extensions.sorted(by: { $0.key < $1.key }) { print("  • \(namespace)") }
             print()
+        }
 
-            // Check for embeddings directory
-            if let embeddingsDir = voxFile.extensionsDirectory {
-                print("  Embeddings directory: \(embeddingsDir.lastPathComponent)")
+        // Raw embeddings (files in archive not covered by embedding entries)
+        let embeddingEntries = voxFile.entries(under: "embeddings/")
+        if !embeddingEntries.isEmpty {
+            let entryFiles = Set(manifest.embeddingEntries?.values.map(\.file) ?? [])
+            let unmapped = embeddingEntries.filter { !entryFiles.contains($0.path) }.sorted(by: { $0.path < $1.path })
+            if !unmapped.isEmpty {
+                print("📦 Raw Embeddings (no manifest entry)")
+                for entry in unmapped {
+                    print("  • \(entry.path) (\(formatBytes(entry.data.count)))")
+                }
                 print()
             }
         }
@@ -179,5 +153,11 @@ struct InspectCommand: ParsableCommand {
     private func formatDate(_ date: Date) -> String {
         let formatter = ISO8601DateFormatter()
         return formatter.string(from: date)
+    }
+
+    private func formatBytes(_ count: Int) -> String {
+        if count < 1024 { return "\(count) B" }
+        else if count < 1024 * 1024 { return String(format: "%.1f KB", Double(count) / 1024.0) }
+        else { return String(format: "%.1f MB", Double(count) / (1024.0 * 1024.0)) }
     }
 }

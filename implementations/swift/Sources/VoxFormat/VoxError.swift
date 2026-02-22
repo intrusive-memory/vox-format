@@ -50,8 +50,20 @@ public enum VoxError: Error, LocalizedError {
     /// A reference audio entry has an empty file path.
     case emptyReferenceAudioPath(index: Int)
 
+    /// An embedding entry in the manifest is invalid.
+    case invalidEmbeddingEntry(key: String, reason: String)
+
+    /// A declared file is missing from the archive bundle.
+    case missingBundledFile(declaredPath: String, section: String)
+
     /// Multiple validation errors occurred.
     case validationErrors([VoxError])
+
+    /// An archive path is invalid (empty or reserved).
+    case invalidPath(String, reason: String)
+
+    /// A required metadata key is missing for an entry.
+    case missingRequiredMetadata(path: String, key: String)
 
     public var errorDescription: String? {
         switch self {
@@ -95,9 +107,17 @@ public enum VoxError: Error, LocalizedError {
             return "Invalid gender value '\(value)'. Must be one of: male, female, nonbinary, neutral"
         case .emptyReferenceAudioPath(let index):
             return "Reference audio entry at index \(index) has an empty file path"
+        case .invalidEmbeddingEntry(let key, let reason):
+            return "Invalid embedding entry '\(key)': \(reason)"
+        case .missingBundledFile(let declaredPath, let section):
+            return "Declared file '\(declaredPath)' is missing from the '\(section)' section of the archive"
         case .validationErrors(let errors):
             let descriptions = errors.compactMap { $0.errorDescription }
             return "Validation failed with \(errors.count) error(s):\n" + descriptions.joined(separator: "\n")
+        case .invalidPath(let path, let reason):
+            return "Invalid path '\(path)': \(reason)"
+        case .missingRequiredMetadata(let path, let key):
+            return "Missing required metadata '\(key)' for entry at '\(path)'"
         }
     }
 }

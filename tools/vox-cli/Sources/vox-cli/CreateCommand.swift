@@ -17,51 +17,31 @@ struct CreateCommand: ParsableCommand {
         """
     )
 
-    @Option(
-        name: .long,
-        help: "Display name for the voice (required)"
-    )
+    @Option(name: .long, help: "Display name for the voice (required)")
     var name: String
 
-    @Option(
-        name: .long,
-        help: "Natural language description of voice characteristics (required, min 10 chars)"
-    )
+    @Option(name: .long, help: "Natural language description of voice characteristics (required, min 10 chars)")
     var description: String
 
-    @Option(
-        name: .shortAndLong,
-        help: "Output file path for the created .vox file (required)"
-    )
+    @Option(name: .shortAndLong, help: "Output file path for the created .vox file (required)")
     var output: String
 
-    @Option(
-        name: .long,
-        help: "Primary language in BCP 47 format (e.g., en-US, en-GB, fr-FR)"
-    )
+    @Option(name: .long, help: "Primary language in BCP 47 format (e.g., en-US, en-GB, fr-FR)")
     var language: String?
 
-    @Option(
-        name: .long,
-        help: "Gender presentation: male, female, nonbinary, neutral"
-    )
+    @Option(name: .long, help: "Gender presentation: male, female, nonbinary, neutral")
     var gender: String?
 
     mutating func validate() throws {
-        // Validate description length
         if description.count < 10 {
             throw ValidationError("Description must be at least 10 characters long")
         }
-
-        // Validate gender if provided
         if let gender = gender {
             let validGenders = ["male", "female", "nonbinary", "neutral"]
             if !validGenders.contains(gender.lowercased()) {
                 throw ValidationError("Gender must be one of: \(validGenders.joined(separator: ", "))")
             }
         }
-
-        // Validate output has .vox extension
         if !output.hasSuffix(".vox") {
             print("Warning: Output file should have .vox extension. Appending .vox")
             output += ".vox"
@@ -69,67 +49,82 @@ struct CreateCommand: ParsableCommand {
     }
 
     mutating func run() throws {
-        // Generate UUID and timestamp
-        let id = UUID().uuidString.lowercased()
-        let created = Date()
+        let vox = VoxFile(name: name, description: description)
 
-        // Create voice metadata
-        let voice = VoxManifest.Voice(
-            name: name,
-            description: description,
-            language: language,
-            gender: gender?.lowercased()
-        )
+        // Apply optional voice attributes by mutating the manifest.
+        if let language = language {
+            var voice = vox.manifest.voice
+            let updatedVoice = VoxManifest.Voice(
+                name: voice.name,
+                description: voice.description,
+                language: language,
+                gender: gender?.lowercased()
+            )
+            vox.manifest = VoxManifest(
+                voxVersion: vox.manifest.voxVersion,
+                id: vox.manifest.id,
+                created: vox.manifest.created,
+                voice: updatedVoice,
+                prosody: vox.manifest.prosody,
+                referenceAudio: vox.manifest.referenceAudio,
+                character: vox.manifest.character,
+                provenance: vox.manifest.provenance,
+                extensions: vox.manifest.extensions,
+                embeddingEntries: vox.manifest.embeddingEntries
+            )
+        } else if let gender = gender {
+            let updatedVoice = VoxManifest.Voice(
+                name: vox.manifest.voice.name,
+                description: vox.manifest.voice.description,
+                gender: gender.lowercased()
+            )
+            vox.manifest = VoxManifest(
+                voxVersion: vox.manifest.voxVersion,
+                id: vox.manifest.id,
+                created: vox.manifest.created,
+                voice: updatedVoice,
+                prosody: vox.manifest.prosody,
+                referenceAudio: vox.manifest.referenceAudio,
+                character: vox.manifest.character,
+                provenance: vox.manifest.provenance,
+                extensions: vox.manifest.extensions,
+                embeddingEntries: vox.manifest.embeddingEntries
+            )
+        }
 
-        // Create manifest
-        let manifest = VoxManifest(
-            voxVersion: "0.1.0",
-            id: id,
-            created: created,
-            voice: voice
-        )
-
-        // Create VoxFile (no reference audio for minimal creation)
-        let voxFile = VoxFile(
-            manifest: manifest,
-            referenceAudioURLs: [],
-            extensionsDirectory: nil
-        )
-
-        // Write the .vox file
         let outputURL = URL(fileURLWithPath: output)
-        let writer = VoxWriter()
 
         do {
-            try writer.write(voxFile, to: outputURL)
+            try vox.write(to: outputURL)
         } catch {
             print("❌ Failed to create .vox file")
             print("Error: \(error.localizedDescription)")
             throw ExitCode.failure
         }
 
-        // Success
         print("✅ Created: \(outputURL.lastPathComponent)")
         print()
         print("Voice: \(name)")
-        print("ID: \(id)")
-        print("Created: \(ISO8601DateFormatter().string(from: created))")
-        if let lang = language {
-            print("Language: \(lang)")
-        }
-        if let gen = gender {
-            print("Gender: \(gen)")
-        }
+        print("ID: \(vox.manifest.id)")
+        print("Created: \(ISO8601DateFormatter().string(from: vox.manifest.created))")
+        if let lang = language { print("Language: \(lang)") }
+        if let gen = gender { print("Gender: \(gen)") }
         print()
         print("Output: \(outputURL.path)")
 
-        // Validate the created file
         print()
         print("Validating created file...")
-        let reader = VoxReader()
-        let readBack = try reader.read(from: outputURL)
-        let validator = VoxValidator()
-        try validator.validate(readBack.manifest, strict: false)
-        print("✅ Validation passed")
+        let readBack = try VoxFile(contentsOf: outputURL)
+        let issues = readBack.validate()
+        let errors = issues.filter { $0.severity == .error }
+        if errors.isEmpty {
+            print("✅ Validation passed")
+        } else {
+            print("❌ Validation failed:")
+            for issue in errors {
+                print("  \(issue)")
+            }
+            throw ExitCode.failure
+        }
     }
 }

@@ -3,14 +3,10 @@ import XCTest
 
 final class ValidatorTests: XCTestCase {
 
-    let validator = VoxValidator()
-    let reader = VoxReader()
+    // MARK: - Helper: Create valid minimal VoxFile
 
-    // MARK: - Helper: Create valid minimal manifest
-
-    /// Creates a valid minimal manifest for testing.
-    private func validMinimalManifest() -> VoxManifest {
-        VoxManifest(
+    private func validMinimalVoxFile() -> VoxFile {
+        let manifest = VoxManifest(
             voxVersion: "0.1.0",
             id: "ad7aa7d7-570d-4f9e-99da-1bd14b99cc78",
             created: Date(timeIntervalSince1970: 1707825600),
@@ -19,11 +15,11 @@ final class ValidatorTests: XCTestCase {
                 description: "A warm, clear narrator voice with neutral accent suitable for audiobooks and documentaries."
             )
         )
+        return VoxFile(manifest: manifest)
     }
 
     // MARK: - Helper: Locate example files
 
-    /// Returns the URL for an example .vox file relative to the repository root.
     private func exampleURL(_ relativePath: String) -> URL {
         let swiftDir = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -35,16 +31,13 @@ final class ValidatorTests: XCTestCase {
         return swiftDir.appendingPathComponent(relativePath)
     }
 
-    // MARK: - VOX-048: Successful Validation Tests
+    // MARK: - Successful Validation Tests
 
     func testValidatesMinimalManifestSuccessfully() throws {
-        let manifest = validMinimalManifest()
-        XCTAssertNoThrow(try validator.validate(manifest))
-    }
-
-    func testValidatesMinimalManifestInStrictMode() throws {
-        let manifest = validMinimalManifest()
-        XCTAssertNoThrow(try validator.validate(manifest, strict: true))
+        let vox = validMinimalVoxFile()
+        let issues = vox.validate()
+        let errors = issues.filter { $0.severity == .error }
+        XCTAssertTrue(errors.isEmpty, "Minimal manifest should validate without errors")
     }
 
     func testValidatesFullySpecifiedManifest() throws {
@@ -88,7 +81,9 @@ final class ValidatorTests: XCTestCase {
             )
         )
 
-        XCTAssertNoThrow(try validator.validate(manifest))
+        let vox = VoxFile(manifest: manifest)
+        let errors = vox.validate().filter { $0.severity == .error }
+        XCTAssertTrue(errors.isEmpty)
     }
 
     func testValidatesExampleMinimalVox() throws {
@@ -98,8 +93,9 @@ final class ValidatorTests: XCTestCase {
             return
         }
 
-        let voxFile = try reader.read(from: url)
-        XCTAssertNoThrow(try validator.validate(voxFile.manifest))
+        let voxFile = try VoxFile(contentsOf: url)
+        let errors = voxFile.validate().filter { $0.severity == .error }
+        XCTAssertTrue(errors.isEmpty)
     }
 
     func testValidatesExampleNarratorWithContextVox() throws {
@@ -109,8 +105,9 @@ final class ValidatorTests: XCTestCase {
             return
         }
 
-        let voxFile = try reader.read(from: url)
-        XCTAssertNoThrow(try validator.validate(voxFile.manifest))
+        let voxFile = try VoxFile(contentsOf: url)
+        let errors = voxFile.validate().filter { $0.severity == .error }
+        XCTAssertTrue(errors.isEmpty)
     }
 
     func testValidatesExampleCrossPlatformVox() throws {
@@ -120,8 +117,9 @@ final class ValidatorTests: XCTestCase {
             return
         }
 
-        let voxFile = try reader.read(from: url)
-        XCTAssertNoThrow(try validator.validate(voxFile.manifest))
+        let voxFile = try VoxFile(contentsOf: url)
+        let errors = voxFile.validate().filter { $0.severity == .error }
+        XCTAssertTrue(errors.isEmpty)
     }
 
     func testValidatesAllExampleVoxFiles() throws {
@@ -137,15 +135,13 @@ final class ValidatorTests: XCTestCase {
                 continue
             }
 
-            let voxFile = try reader.read(from: url)
-            XCTAssertNoThrow(
-                try validator.validate(voxFile.manifest),
-                "Validation should pass for \(example)"
-            )
+            let voxFile = try VoxFile(contentsOf: url)
+            let errors = voxFile.validate().filter { $0.severity == .error }
+            XCTAssertTrue(errors.isEmpty, "Validation should pass for \(example)")
         }
     }
 
-    // MARK: - VOX-048: Required Field Rejection Tests
+    // MARK: - Required Field Rejection Tests
 
     func testRejectsMissingVoxVersion() throws {
         let manifest = VoxManifest(
@@ -158,23 +154,10 @@ final class ValidatorTests: XCTestCase {
             )
         )
 
-        XCTAssertThrowsError(try validator.validate(manifest)) { error in
-            guard let voxError = error as? VoxError else {
-                XCTFail("Expected VoxError, got \(type(of: error))")
-                return
-            }
-            if case .validationErrors(let errors) = voxError {
-                let hasVersionError = errors.contains { err in
-                    if case .emptyRequiredField(let field) = err {
-                        return field == "vox_version"
-                    }
-                    return false
-                }
-                XCTAssertTrue(hasVersionError, "Should include empty vox_version error")
-            } else {
-                XCTFail("Expected validationErrors, got \(voxError)")
-            }
-        }
+        let vox = VoxFile(manifest: manifest)
+        let issues = vox.validate()
+        let hasVersionError = issues.contains { $0.severity == .error && $0.field == "vox_version" }
+        XCTAssertTrue(hasVersionError, "Should include empty vox_version error")
     }
 
     func testRejectsWhitespaceOnlyVoxVersion() throws {
@@ -188,7 +171,9 @@ final class ValidatorTests: XCTestCase {
             )
         )
 
-        XCTAssertThrowsError(try validator.validate(manifest))
+        let vox = VoxFile(manifest: manifest)
+        let errors = vox.validate().filter { $0.severity == .error }
+        XCTAssertFalse(errors.isEmpty)
     }
 
     func testRejectsInvalidUUID() throws {
@@ -202,27 +187,13 @@ final class ValidatorTests: XCTestCase {
             )
         )
 
-        XCTAssertThrowsError(try validator.validate(manifest)) { error in
-            guard let voxError = error as? VoxError else {
-                XCTFail("Expected VoxError, got \(type(of: error))")
-                return
-            }
-            if case .validationErrors(let errors) = voxError {
-                let hasUUIDError = errors.contains { err in
-                    if case .invalidUUID = err {
-                        return true
-                    }
-                    return false
-                }
-                XCTAssertTrue(hasUUIDError, "Should include invalidUUID error")
-            } else {
-                XCTFail("Expected validationErrors, got \(voxError)")
-            }
-        }
+        let vox = VoxFile(manifest: manifest)
+        let issues = vox.validate()
+        let hasUUIDError = issues.contains { $0.severity == .error && $0.field == "id" }
+        XCTAssertTrue(hasUUIDError, "Should include invalidUUID error")
     }
 
     func testRejectsUUIDWithUppercase() throws {
-        // The schema requires lowercase hex digits
         let manifest = VoxManifest(
             voxVersion: "0.1.0",
             id: "AD7AA7D7-570D-4F9E-99DA-1BD14B99CC78",
@@ -234,11 +205,13 @@ final class ValidatorTests: XCTestCase {
         )
 
         // Should still pass because the validator lowercases before checking
-        XCTAssertNoThrow(try validator.validate(manifest))
+        let vox = VoxFile(manifest: manifest)
+        let errors = vox.validate().filter { $0.severity == .error }
+        let hasUUIDError = errors.contains { $0.field == "id" }
+        XCTAssertFalse(hasUUIDError, "Uppercase UUID should be accepted")
     }
 
     func testRejectsUUIDv1Format() throws {
-        // UUID v1 has version nibble 1, not 4
         let manifest = VoxManifest(
             voxVersion: "0.1.0",
             id: "ad7aa7d7-570d-1f9e-99da-1bd14b99cc78",
@@ -249,19 +222,10 @@ final class ValidatorTests: XCTestCase {
             )
         )
 
-        XCTAssertThrowsError(try validator.validate(manifest)) { error in
-            guard let voxError = error as? VoxError else {
-                XCTFail("Expected VoxError")
-                return
-            }
-            if case .validationErrors(let errors) = voxError {
-                let hasUUIDError = errors.contains { err in
-                    if case .invalidUUID = err { return true }
-                    return false
-                }
-                XCTAssertTrue(hasUUIDError, "Should reject UUID v1 format")
-            }
-        }
+        let vox = VoxFile(manifest: manifest)
+        let issues = vox.validate()
+        let hasUUIDError = issues.contains { $0.severity == .error && $0.field == "id" }
+        XCTAssertTrue(hasUUIDError, "Should reject UUID v1 format")
     }
 
     func testRejectsEmptyVoiceName() throws {
@@ -275,23 +239,10 @@ final class ValidatorTests: XCTestCase {
             )
         )
 
-        XCTAssertThrowsError(try validator.validate(manifest)) { error in
-            guard let voxError = error as? VoxError else {
-                XCTFail("Expected VoxError, got \(type(of: error))")
-                return
-            }
-            if case .validationErrors(let errors) = voxError {
-                let hasNameError = errors.contains { err in
-                    if case .emptyRequiredField(let field) = err {
-                        return field == "voice.name"
-                    }
-                    return false
-                }
-                XCTAssertTrue(hasNameError, "Should include empty voice.name error")
-            } else {
-                XCTFail("Expected validationErrors, got \(voxError)")
-            }
-        }
+        let vox = VoxFile(manifest: manifest)
+        let issues = vox.validate()
+        let hasNameError = issues.contains { $0.severity == .error && $0.field == "voice.name" }
+        XCTAssertTrue(hasNameError, "Should include empty voice.name error")
     }
 
     func testRejectsEmptyVoiceDescription() throws {
@@ -305,21 +256,10 @@ final class ValidatorTests: XCTestCase {
             )
         )
 
-        XCTAssertThrowsError(try validator.validate(manifest)) { error in
-            guard let voxError = error as? VoxError else {
-                XCTFail("Expected VoxError, got \(type(of: error))")
-                return
-            }
-            if case .validationErrors(let errors) = voxError {
-                let hasDescError = errors.contains { err in
-                    if case .emptyRequiredField(let field) = err {
-                        return field == "voice.description"
-                    }
-                    return false
-                }
-                XCTAssertTrue(hasDescError, "Should include empty voice.description error")
-            }
-        }
+        let vox = VoxFile(manifest: manifest)
+        let issues = vox.validate()
+        let hasDescError = issues.contains { $0.severity == .error && $0.field == "voice.description" }
+        XCTAssertTrue(hasDescError, "Should include empty voice.description error")
     }
 
     func testRejectsTooShortVoiceDescription() throws {
@@ -329,26 +269,17 @@ final class ValidatorTests: XCTestCase {
             created: Date(),
             voice: VoxManifest.Voice(
                 name: "Test",
-                description: "Short"  // Only 5 characters, minimum is 10
+                description: "Short"
             )
         )
 
-        XCTAssertThrowsError(try validator.validate(manifest)) { error in
-            guard let voxError = error as? VoxError else {
-                XCTFail("Expected VoxError, got \(type(of: error))")
-                return
-            }
-            if case .validationErrors(let errors) = voxError {
-                let hasShortError = errors.contains { err in
-                    if case .descriptionTooShort = err { return true }
-                    return false
-                }
-                XCTAssertTrue(hasShortError, "Should include descriptionTooShort error")
-            }
-        }
+        let vox = VoxFile(manifest: manifest)
+        let issues = vox.validate()
+        let hasShortError = issues.contains { $0.severity == .error && $0.field == "voice.description" }
+        XCTAssertTrue(hasShortError, "Should include descriptionTooShort error")
     }
 
-    // MARK: - VOX-048: Optional Field Rejection Tests
+    // MARK: - Optional Field Rejection Tests
 
     func testRejectsInvalidAgeRange() throws {
         let manifest = VoxManifest(
@@ -358,25 +289,14 @@ final class ValidatorTests: XCTestCase {
             voice: VoxManifest.Voice(
                 name: "Test",
                 description: "A valid description with enough characters.",
-                ageRange: [30, 20]  // min > max
+                ageRange: [30, 20]
             )
         )
 
-        XCTAssertThrowsError(try validator.validate(manifest)) { error in
-            guard let voxError = error as? VoxError else {
-                XCTFail("Expected VoxError, got \(type(of: error))")
-                return
-            }
-            if case .validationErrors(let errors) = voxError {
-                let hasAgeError = errors.contains { err in
-                    if case .invalidAgeRange(let min, let max) = err {
-                        return min == 30 && max == 20
-                    }
-                    return false
-                }
-                XCTAssertTrue(hasAgeError, "Should include invalidAgeRange error for [30, 20]")
-            }
-        }
+        let vox = VoxFile(manifest: manifest)
+        let issues = vox.validate()
+        let hasAgeError = issues.contains { $0.severity == .error && $0.field == "voice.age_range" }
+        XCTAssertTrue(hasAgeError, "Should include invalidAgeRange error for [30, 20]")
     }
 
     func testRejectsEqualAgeRange() throws {
@@ -387,11 +307,13 @@ final class ValidatorTests: XCTestCase {
             voice: VoxManifest.Voice(
                 name: "Test",
                 description: "A valid description with enough characters.",
-                ageRange: [30, 30]  // equal values
+                ageRange: [30, 30]
             )
         )
 
-        XCTAssertThrowsError(try validator.validate(manifest))
+        let vox = VoxFile(manifest: manifest)
+        let errors = vox.validate().filter { $0.severity == .error }
+        XCTAssertFalse(errors.isEmpty)
     }
 
     func testRejectsInvalidGender() throws {
@@ -402,25 +324,14 @@ final class ValidatorTests: XCTestCase {
             voice: VoxManifest.Voice(
                 name: "Test",
                 description: "A valid description with enough characters.",
-                gender: "other"  // Not in the allowed enum
+                gender: "other"
             )
         )
 
-        XCTAssertThrowsError(try validator.validate(manifest)) { error in
-            guard let voxError = error as? VoxError else {
-                XCTFail("Expected VoxError, got \(type(of: error))")
-                return
-            }
-            if case .validationErrors(let errors) = voxError {
-                let hasGenderError = errors.contains { err in
-                    if case .invalidGender(let value) = err {
-                        return value == "other"
-                    }
-                    return false
-                }
-                XCTAssertTrue(hasGenderError, "Should include invalidGender error for 'other'")
-            }
-        }
+        let vox = VoxFile(manifest: manifest)
+        let issues = vox.validate()
+        let hasGenderError = issues.contains { $0.severity == .error && $0.field == "voice.gender" }
+        XCTAssertTrue(hasGenderError, "Should include invalidGender error for 'other'")
     }
 
     func testAcceptsAllValidGenders() throws {
@@ -438,10 +349,9 @@ final class ValidatorTests: XCTestCase {
                 )
             )
 
-            XCTAssertNoThrow(
-                try validator.validate(manifest),
-                "Gender '\(gender)' should be accepted"
-            )
+            let vox = VoxFile(manifest: manifest)
+            let errors = vox.validate().filter { $0.severity == .error }
+            XCTAssertTrue(errors.isEmpty, "Gender '\(gender)' should be accepted")
         }
     }
 
@@ -456,27 +366,16 @@ final class ValidatorTests: XCTestCase {
             ),
             referenceAudio: [
                 VoxManifest.ReferenceAudio(
-                    file: "",  // Empty path
+                    file: "",
                     transcript: "Some transcript"
                 )
             ]
         )
 
-        XCTAssertThrowsError(try validator.validate(manifest)) { error in
-            guard let voxError = error as? VoxError else {
-                XCTFail("Expected VoxError, got \(type(of: error))")
-                return
-            }
-            if case .validationErrors(let errors) = voxError {
-                let hasPathError = errors.contains { err in
-                    if case .emptyReferenceAudioPath(let index) = err {
-                        return index == 0
-                    }
-                    return false
-                }
-                XCTAssertTrue(hasPathError, "Should include emptyReferenceAudioPath error at index 0")
-            }
-        }
+        let vox = VoxFile(manifest: manifest)
+        let issues = vox.validate()
+        let hasPathError = issues.contains { $0.severity == .error && ($0.field?.contains("reference_audio") ?? false) }
+        XCTAssertTrue(hasPathError, "Should include emptyReferenceAudioPath error")
     }
 
     func testAcceptsValidReferenceAudio() throws {
@@ -496,12 +395,14 @@ final class ValidatorTests: XCTestCase {
             ]
         )
 
-        XCTAssertNoThrow(try validator.validate(manifest))
+        let vox = VoxFile(manifest: manifest)
+        let errors = vox.validate().filter { $0.severity == .error }
+        XCTAssertTrue(errors.isEmpty)
     }
 
-    // MARK: - VOX-048: Multiple Error Collection Tests
+    // MARK: - Multiple Error Collection Tests
 
-    func testCollectsMultipleErrorsInPermissiveMode() throws {
+    func testCollectsMultipleErrors() throws {
         let manifest = VoxManifest(
             voxVersion: "",
             id: "not-a-uuid",
@@ -514,48 +415,15 @@ final class ValidatorTests: XCTestCase {
             )
         )
 
-        do {
-            try validator.validate(manifest)
-            XCTFail("Expected validation to fail")
-        } catch let error as VoxError {
-            if case .validationErrors(let errors) = error {
-                // Should have multiple errors: empty version, invalid UUID,
-                // empty name, short description, invalid gender, invalid age range
-                XCTAssertGreaterThanOrEqual(
-                    errors.count, 4,
-                    "Should collect multiple validation errors, got \(errors.count)"
-                )
-            } else {
-                XCTFail("Expected validationErrors, got \(error)")
-            }
-        }
-    }
-
-    func testStrictModeStopsAtFirstError() throws {
-        let manifest = VoxManifest(
-            voxVersion: "",
-            id: "not-a-uuid",
-            created: Date(),
-            voice: VoxManifest.Voice(
-                name: "",
-                description: "Short"
-            )
+        let vox = VoxFile(manifest: manifest)
+        let errors = vox.validate().filter { $0.severity == .error }
+        XCTAssertGreaterThanOrEqual(
+            errors.count, 4,
+            "Should collect multiple validation errors, got \(errors.count)"
         )
-
-        do {
-            try validator.validate(manifest, strict: true)
-            XCTFail("Expected validation to fail in strict mode")
-        } catch let error as VoxError {
-            if case .validationErrors(let errors) = error {
-                // In strict mode, should stop after first error
-                XCTAssertEqual(errors.count, 1, "Strict mode should stop at first error")
-            } else {
-                XCTFail("Expected validationErrors, got \(error)")
-            }
-        }
     }
 
-    // MARK: - VOX-048: UUID Validation Helper Tests
+    // MARK: - UUID Validation Helper Tests
 
     func testUUIDv4ValidationHelperAcceptsValid() throws {
         let validUUIDs = [
@@ -567,7 +435,7 @@ final class ValidatorTests: XCTestCase {
 
         for uuid in validUUIDs {
             XCTAssertTrue(
-                validator.isValidUUIDv4(uuid),
+                VoxFile.isValidUUIDv4(uuid),
                 "'\(uuid)' should be accepted as valid UUID v4"
             )
         }
@@ -576,22 +444,22 @@ final class ValidatorTests: XCTestCase {
     func testUUIDv4ValidationHelperRejectsInvalid() throws {
         let invalidUUIDs = [
             "not-a-uuid",
-            "12345678-1234-1234-1234-123456789abc", // version 1
-            "12345678-1234-5234-8234-123456789abc", // version 5
-            "ZZZZZZZZ-ZZZZ-4ZZZ-8ZZZ-ZZZZZZZZZZZZ", // non-hex characters
+            "12345678-1234-1234-1234-123456789abc",
+            "12345678-1234-5234-8234-123456789abc",
+            "ZZZZZZZZ-ZZZZ-4ZZZ-8ZZZ-ZZZZZZZZZZZZ",
             "",
-            "12345678-1234-4234-0234-123456789abc" // variant nibble 0 not in [89ab]
+            "12345678-1234-4234-0234-123456789abc"
         ]
 
         for uuid in invalidUUIDs {
             XCTAssertFalse(
-                validator.isValidUUIDv4(uuid),
+                VoxFile.isValidUUIDv4(uuid),
                 "'\(uuid)' should be rejected as invalid UUID v4"
             )
         }
     }
 
-    // MARK: - VOX-048: Nil Optional Fields Accepted
+    // MARK: - Nil Optional Fields Accepted
 
     func testAcceptsNilOptionalFields() throws {
         let manifest = VoxManifest(
@@ -613,12 +481,30 @@ final class ValidatorTests: XCTestCase {
             extensions: nil
         )
 
-        XCTAssertNoThrow(try validator.validate(manifest))
+        let vox = VoxFile(manifest: manifest)
+        let errors = vox.validate().filter { $0.severity == .error }
+        XCTAssertTrue(errors.isEmpty)
     }
 
-    // MARK: - VOX-048: Error Description Tests
+    // MARK: - isValid convenience
 
-    func testValidationErrorDescriptionsAreDescriptive() throws {
+    func testIsValidConvenience() throws {
+        let valid = validMinimalVoxFile()
+        XCTAssertTrue(valid.isValid)
+
+        let invalidManifest = VoxManifest(
+            voxVersion: "",
+            id: "bad",
+            created: Date(),
+            voice: VoxManifest.Voice(name: "", description: "")
+        )
+        let invalid = VoxFile(manifest: invalidManifest)
+        XCTAssertFalse(invalid.isValid)
+    }
+
+    // MARK: - Error Description Tests
+
+    func testValidationIssueDescriptionsAreDescriptive() throws {
         let manifest = VoxManifest(
             voxVersion: "",
             id: "bad-uuid",
@@ -629,16 +515,11 @@ final class ValidatorTests: XCTestCase {
             )
         )
 
-        do {
-            try validator.validate(manifest)
-            XCTFail("Expected validation to fail")
-        } catch let error as VoxError {
-            let description = error.errorDescription ?? ""
-            XCTAssertFalse(description.isEmpty, "Error should have a description")
-            XCTAssertTrue(
-                description.contains("error"),
-                "Error description should mention 'error'"
-            )
+        let vox = VoxFile(manifest: manifest)
+        let issues = vox.validate()
+        XCTAssertFalse(issues.isEmpty, "Should have validation issues")
+        for issue in issues {
+            XCTAssertFalse(issue.description.isEmpty, "Issue should have a description")
         }
     }
 }

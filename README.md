@@ -6,7 +6,7 @@
 
 ![Swift Tests](https://github.com/intrusive-memory/vox-format/actions/workflows/swift-tests.yml/badge.svg)
 
-**Version:** 0.1.0
+**Version:** 0.2.0
 **License:** [CC0 1.0 Universal](LICENSE) (Public Domain)
 
 VOX (`.vox`) is an open, vendor-neutral file format for persisting voice identities for text-to-speech synthesis. Think of it as a **headshot and voice reel** for AI voices — capturing everything needed to reproduce a consistent voice across different TTS engines.
@@ -158,26 +158,34 @@ Then add `VoxFormat` to your target's dependencies:
 import VoxFormat
 
 // Read a .vox file
-let reader = VoxReader()
-let voxFile = try reader.read(from: URL(fileURLWithPath: "voice.vox"))
-print(voxFile.manifest.voice.name)
+let vox = try VoxFile(contentsOf: URL(fileURLWithPath: "voice.vox"))
+print(vox.manifest.voice.name)
 
 // Create a .vox file
-let manifest = VoxManifest(
-    voxVersion: "0.1.0",
-    id: UUID().uuidString.lowercased(),
-    created: Date(),
-    voice: VoxManifest.Voice(
-        name: "NARRATOR",
-        description: "A warm, clear narrator voice for audiobooks."
-    )
-)
-let writer = VoxWriter()
-try writer.write(VoxFile(manifest: manifest), to: URL(fileURLWithPath: "output.vox"))
+let vox = VoxFile(name: "NARRATOR", description: "A warm, clear narrator voice for audiobooks.")
+try vox.write(to: URL(fileURLWithPath: "narrator.vox"))
+
+// Add reference audio
+try vox.add(audioData, at: "reference/sample.wav", metadata: [
+    "transcript": "Hello, welcome to the audiobook.",
+    "language": "en-US",
+    "duration_seconds": 3.5
+])
+
+// Add engine-specific embeddings
+try vox.add(embeddingData, at: "embeddings/qwen3-tts/0.6b/clone-prompt.bin", metadata: [
+    "model": "Qwen/Qwen3-TTS-12Hz-0.6B",
+    "engine": "qwen3-tts"
+])
+
+// Query model support
+if vox.supportsModel("qwen3-tts-0.6b") {
+    let data = vox.embeddingData(for: "0.6b")
+}
 
 // Validate
-let validator = VoxValidator()
-try validator.validate(voxFile.manifest)
+let issues = vox.validate()
+print(vox.isValid)  // true if no errors
 ```
 
 ## CLI Tool
@@ -202,10 +210,11 @@ See [`tools/vox-cli/`](tools/vox-cli/) for build instructions.
 
 ## Roadmap
 
-### Shipped (v0.1.0)
+### Shipped (v0.2.0)
 - ✅ Specification drafted
 - ✅ JSON Schema for automated validation
-- ✅ Swift reference implementation (VoxReader, VoxWriter, VoxValidator)
+- ✅ Swift reference implementation — container-first API (`VoxFile` is the API)
+- ✅ Multi-model embedding support with structured manifest metadata
 - ✅ CLI tool (inspect, validate, create, extract)
 - ✅ Example `.vox` files (minimal, character, multi-engine, voice library)
 - ✅ CI/CD with GitHub Actions (Swift tests + schema validation)

@@ -1,0 +1,99 @@
+name: Release Binary
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v1.0.0)'
+        required: true
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-upload:
+    name: Build and Upload Binary
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache DerivedData and SPM packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Developer/Xcode/DerivedData/vox-format-*
+            ~/Library/Caches/org.swift.swiftpm
+            ~/Library/org.swift.swiftpm
+          key: release-v1-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            release-v1-${{ runner.os }}-
+
+      - name: Determine Version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          else
+            TAG="${{ inputs.tag }}"
+          fi
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Building version: ${VERSION} (tag: ${TAG})"
+
+      - name: Clean stale build products
+        run: rm -rf ./bin
+
+      - name: Build Release Binary
+        run: make release
+
+      - name: Verify Binary
+        run: |
+          file ./bin/vox
+          ./bin/vox --version
+
+      - name: Package Binary
+        id: package
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TARBALL="vox-${VERSION}-arm64-macos.tar.gz"
+
+          cd bin
+          tar -czvf "${TARBALL}" vox
+          SHA256=$(shasum -a 256 "${TARBALL}" | cut -d' ' -f1)
+
+          echo "tarball=${TARBALL}" >> $GITHUB_OUTPUT
+          echo "sha256=${SHA256}" >> $GITHUB_OUTPUT
+
+          echo "Created: ${TARBALL}"
+          echo "SHA256: ${SHA256}"
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          files: |
+            bin/${{ steps.package.outputs.tarball }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trigger Homebrew Tap Update
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.DEPLOY_TOKEN }}
+          repository: intrusive-memory/homebrew-tap
+          event-type: formula-update
+          client-payload: |
+            {
+              "formula": "vox",
+              "version": "${{ steps.version.outputs.tag }}",
+              "repo": "${{ github.repository }}"
+            }
