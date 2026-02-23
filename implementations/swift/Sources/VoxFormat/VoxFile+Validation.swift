@@ -51,6 +51,9 @@ extension VoxFile {
     /// The minimum length for the voice description field.
     private static let minimumDescriptionLength = 10
 
+    /// The set of known provenance method values per the VOX specification.
+    private static let knownMethods: Set<String> = ["designed", "synthesized", "cloned", "preset", "hybrid"]
+
     /// Validates this VoxFile against the VOX format specification.
     ///
     /// Returns an array of ``VoxIssue`` findings. An empty array means the file is valid.
@@ -64,6 +67,8 @@ extension VoxFile {
         validateOptionalFields(&issues)
         validateEmbeddingEntries(&issues)
         validateBundleCompleteness(&issues)
+        validateProvenance(&issues)
+        validateReferenceAudioModelTags(&issues)
 
         return issues
     }
@@ -216,6 +221,76 @@ extension VoxFile {
                         field: "reference_audio"
                     ))
                 }
+            }
+        }
+    }
+
+    // MARK: - Provenance Validation (v0.3.0)
+
+    private func validateProvenance(_ issues: inout [VoxIssue]) {
+        guard let provenance = manifest.provenance else { return }
+
+        if let method = provenance.method {
+            if !Self.knownMethods.contains(method) {
+                issues.append(VoxIssue(
+                    severity: .warning,
+                    message: "Unknown provenance method '\(method)'. Known values: designed, synthesized, cloned, preset, hybrid",
+                    field: "provenance.method"
+                ))
+            }
+
+            if method == "cloned" {
+                // MUST: Cloned voices require source traceability
+                if provenance.source == nil || provenance.source?.isEmpty == true {
+                    issues.append(VoxIssue(
+                        severity: .error,
+                        message: "Cloned voices must have provenance.source with at least one entry for traceability",
+                        field: "provenance.source"
+                    ))
+                }
+
+                // MUST: Cloned voices require explicit consent
+                let validCloneConsent: Set<String> = ["self", "granted"]
+                if let consent = provenance.consent {
+                    if !validCloneConsent.contains(consent) {
+                        issues.append(VoxIssue(
+                            severity: .error,
+                            message: "Cloned voices require consent of 'self' or 'granted', got '\(consent)'",
+                            field: "provenance.consent"
+                        ))
+                    }
+                } else {
+                    issues.append(VoxIssue(
+                        severity: .error,
+                        message: "Cloned voices require consent of 'self' or 'granted', but consent is nil",
+                        field: "provenance.consent"
+                    ))
+                }
+            }
+        }
+    }
+
+    // MARK: - Reference Audio Model Tag Validation (v0.3.0)
+
+    private func validateReferenceAudioModelTags(_ issues: inout [VoxIssue]) {
+        guard let clips = manifest.referenceAudio else { return }
+        let embeddingModels: Set<String> = Set(
+            manifest.embeddingEntries?.values.map { $0.model.lowercased() } ?? []
+        )
+
+        for (index, clip) in clips.enumerated() {
+            guard let clipModel = clip.model else { continue }
+
+            let hasMatch = embeddingModels.contains(where: { embModel in
+                embModel.contains(clipModel.lowercased()) || clipModel.lowercased().contains(embModel)
+            })
+
+            if !hasMatch {
+                issues.append(VoxIssue(
+                    severity: .warning,
+                    message: "Model-tagged reference audio '\(clipModel)' has no matching embeddings entry",
+                    field: "reference_audio[\(index)].model"
+                ))
             }
         }
     }

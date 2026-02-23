@@ -502,6 +502,220 @@ final class ValidatorTests: XCTestCase {
         XCTAssertFalse(invalid.isValid)
     }
 
+    // MARK: - Ethical Provenance Validation (v0.3.0)
+
+    func testClonedWithoutSourceProducesError() throws {
+        let manifest = VoxManifest(
+            voxVersion: "0.3.0",
+            id: "ad7aa7d7-570d-4f9e-99da-1bd14b99cc78",
+            created: Date(),
+            voice: VoxManifest.Voice(
+                name: "ClonedNoSource",
+                description: "A cloned voice missing source traceability."
+            ),
+            provenance: VoxManifest.Provenance(
+                method: "cloned",
+                consent: "self",
+                source: nil
+            )
+        )
+        let vox = VoxFile(manifest: manifest)
+        let issues = vox.validate()
+        let hasSourceError = issues.contains { $0.severity == .error && $0.field == "provenance.source" }
+        XCTAssertTrue(hasSourceError, "Cloned voice without source should produce error")
+    }
+
+    func testClonedWithEmptySourceProducesError() throws {
+        let manifest = VoxManifest(
+            voxVersion: "0.3.0",
+            id: "ad7aa7d7-570d-4f9e-99da-1bd14b99cc78",
+            created: Date(),
+            voice: VoxManifest.Voice(
+                name: "ClonedEmptySource",
+                description: "A cloned voice with empty source array."
+            ),
+            provenance: VoxManifest.Provenance(
+                method: "cloned",
+                consent: "granted",
+                source: []
+            )
+        )
+        let vox = VoxFile(manifest: manifest)
+        let issues = vox.validate()
+        let hasSourceError = issues.contains { $0.severity == .error && $0.field == "provenance.source" }
+        XCTAssertTrue(hasSourceError, "Cloned voice with empty source should produce error")
+    }
+
+    func testClonedWithUnknownConsentProducesError() throws {
+        let manifest = VoxManifest(
+            voxVersion: "0.3.0",
+            id: "ad7aa7d7-570d-4f9e-99da-1bd14b99cc78",
+            created: Date(),
+            voice: VoxManifest.Voice(
+                name: "ClonedUnknownConsent",
+                description: "A cloned voice with unknown consent status."
+            ),
+            provenance: VoxManifest.Provenance(
+                method: "cloned",
+                consent: "unknown",
+                source: ["reference/source.wav"]
+            )
+        )
+        let vox = VoxFile(manifest: manifest)
+        let issues = vox.validate()
+        let hasConsentError = issues.contains { $0.severity == .error && $0.field == "provenance.consent" }
+        XCTAssertTrue(hasConsentError, "Cloned voice with unknown consent should produce error")
+    }
+
+    func testClonedWithNilConsentProducesError() throws {
+        let manifest = VoxManifest(
+            voxVersion: "0.3.0",
+            id: "ad7aa7d7-570d-4f9e-99da-1bd14b99cc78",
+            created: Date(),
+            voice: VoxManifest.Voice(
+                name: "ClonedNilConsent",
+                description: "A cloned voice with nil consent status."
+            ),
+            provenance: VoxManifest.Provenance(
+                method: "cloned",
+                consent: nil,
+                source: ["reference/source.wav"]
+            )
+        )
+        let vox = VoxFile(manifest: manifest)
+        let issues = vox.validate()
+        let hasConsentError = issues.contains { $0.severity == .error && $0.field == "provenance.consent" }
+        XCTAssertTrue(hasConsentError, "Cloned voice with nil consent should produce error")
+    }
+
+    func testClonedWithSelfConsentAndSourcePasses() throws {
+        let manifest = VoxManifest(
+            voxVersion: "0.3.0",
+            id: "ad7aa7d7-570d-4f9e-99da-1bd14b99cc78",
+            created: Date(),
+            voice: VoxManifest.Voice(
+                name: "ClonedValid",
+                description: "A properly consented cloned voice."
+            ),
+            provenance: VoxManifest.Provenance(
+                method: "cloned",
+                consent: "self",
+                source: ["reference/my-voice.wav"]
+            )
+        )
+        let vox = VoxFile(manifest: manifest)
+        let errors = vox.validate().filter { $0.severity == .error }
+        XCTAssertTrue(errors.isEmpty, "Cloned voice with self consent and source should pass")
+    }
+
+    func testClonedWithGrantedConsentAndSourcePasses() throws {
+        let manifest = VoxManifest(
+            voxVersion: "0.3.0",
+            id: "ad7aa7d7-570d-4f9e-99da-1bd14b99cc78",
+            created: Date(),
+            voice: VoxManifest.Voice(
+                name: "ClonedGranted",
+                description: "A cloned voice with granted consent."
+            ),
+            provenance: VoxManifest.Provenance(
+                method: "cloned",
+                consent: "granted",
+                source: ["reference/actor-recording.wav"]
+            )
+        )
+        let vox = VoxFile(manifest: manifest)
+        let errors = vox.validate().filter { $0.severity == .error }
+        XCTAssertTrue(errors.isEmpty, "Cloned voice with granted consent and source should pass")
+    }
+
+    func testSynthesizedMethodPasses() throws {
+        let manifest = VoxManifest(
+            voxVersion: "0.3.0",
+            id: "ad7aa7d7-570d-4f9e-99da-1bd14b99cc78",
+            created: Date(),
+            voice: VoxManifest.Voice(
+                name: "Synthesized",
+                description: "A synthesized voice from model generation."
+            ),
+            provenance: VoxManifest.Provenance(
+                method: "synthesized",
+                engine: "qwen3-tts-1.7b"
+            )
+        )
+        let vox = VoxFile(manifest: manifest)
+        let errors = vox.validate().filter { $0.severity == .error }
+        XCTAssertTrue(errors.isEmpty, "Synthesized method should validate without errors")
+    }
+
+    func testModelTaggedAudioWithoutMatchingEmbeddingProducesWarning() throws {
+        let manifest = VoxManifest(
+            voxVersion: "0.3.0",
+            id: "ad7aa7d7-570d-4f9e-99da-1bd14b99cc78",
+            created: Date(),
+            voice: VoxManifest.Voice(
+                name: "OrphanModel",
+                description: "Voice with model-tagged audio but no embedding."
+            ),
+            referenceAudio: [
+                VoxManifest.ReferenceAudio(
+                    file: "reference/sample.wav",
+                    transcript: "Test",
+                    model: "SomeModel/That-Does-Not-Exist"
+                )
+            ]
+        )
+        let vox = VoxFile(manifest: manifest)
+        let warnings = vox.validate().filter { $0.severity == .warning && ($0.field?.contains("model") ?? false) }
+        XCTAssertFalse(warnings.isEmpty, "Model-tagged audio without matching embedding should produce warning")
+    }
+
+    func testModelTaggedAudioWithMatchingEmbeddingNoWarning() throws {
+        let manifest = VoxManifest(
+            voxVersion: "0.3.0",
+            id: "ad7aa7d7-570d-4f9e-99da-1bd14b99cc78",
+            created: Date(),
+            voice: VoxManifest.Voice(
+                name: "MatchedModel",
+                description: "Voice with model-tagged audio and matching embedding."
+            ),
+            referenceAudio: [
+                VoxManifest.ReferenceAudio(
+                    file: "reference/sample.wav",
+                    transcript: "Test",
+                    model: "Qwen/Qwen3-TTS-12Hz-0.6B"
+                )
+            ],
+            embeddingEntries: [
+                "qwen3-tts-0.6b": VoxManifest.EmbeddingEntry(
+                    model: "Qwen/Qwen3-TTS-12Hz-0.6B",
+                    engine: "qwen3-tts",
+                    file: "embeddings/qwen3-tts/0.6b/clone-prompt.bin"
+                )
+            ]
+        )
+        let vox = VoxFile(manifest: manifest)
+        let modelWarnings = vox.validate().filter { $0.severity == .warning && ($0.field?.contains("model") ?? false) }
+        XCTAssertTrue(modelWarnings.isEmpty, "Model-tagged audio with matching embedding should not produce model warning")
+    }
+
+    func testUnknownMethodProducesWarning() throws {
+        let manifest = VoxManifest(
+            voxVersion: "0.3.0",
+            id: "ad7aa7d7-570d-4f9e-99da-1bd14b99cc78",
+            created: Date(),
+            voice: VoxManifest.Voice(
+                name: "UnknownMethod",
+                description: "Voice with unknown provenance method."
+            ),
+            provenance: VoxManifest.Provenance(
+                method: "alien-technology"
+            )
+        )
+        let vox = VoxFile(manifest: manifest)
+        let warnings = vox.validate().filter { $0.severity == .warning && $0.field == "provenance.method" }
+        XCTAssertFalse(warnings.isEmpty, "Unknown method should produce warning")
+    }
+
     // MARK: - Error Description Tests
 
     func testValidationIssueDescriptionsAreDescriptive() throws {

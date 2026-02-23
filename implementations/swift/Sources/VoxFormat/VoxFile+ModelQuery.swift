@@ -74,4 +74,28 @@ extension VoxFile {
     public var supportedModels: [String] {
         manifest.embeddingEntries?.values.map(\.model) ?? []
     }
+
+    /// Returns reference audio clips matching the given model, falling back to universal clips.
+    ///
+    /// A clip matches if its `model` field contains the query (case-insensitive substring).
+    /// If no model-matched clips exist, returns clips without a `model` tag (universal clips).
+    ///
+    /// - Parameter model: A model identifier or substring (e.g., `"0.6b"`, `"Qwen/Qwen3-TTS-12Hz-1.7B"`).
+    /// - Returns: Matching reference audio entries. May be empty if no clips exist at all.
+    public func referenceAudio(for model: String) -> [VoxManifest.ReferenceAudio] {
+        guard let clips = manifest.referenceAudio else { return [] }
+        let q = model.lowercased()
+
+        let matched = clips.filter { clip in
+            guard let clipModel = clip.model else { return false }
+            return clipModel.lowercased().contains(q)
+        }
+
+        if !matched.isEmpty {
+            return matched
+        }
+
+        // Fall back to universal (untagged) clips
+        return clips.filter { $0.model == nil }
+    }
 }

@@ -229,12 +229,21 @@ extension VoxManifest {
         /// Contextual note about the audio clip (e.g., `"Calm narration, studio recording"`).
         public var context: String?
 
+        /// Model identifier this clip was produced by or intended for (v0.3.0).
+        /// Should match an `embeddings` entry's `model` value. Nil means universal.
+        public var model: String?
+
+        /// Engine namespace for this clip (e.g., `"qwen3-tts"`) (v0.3.0).
+        public var engine: String?
+
         private enum CodingKeys: String, CodingKey {
             case file
             case transcript
             case language
             case durationSeconds = "duration_seconds"
             case context
+            case model
+            case engine
         }
 
         public init(
@@ -242,13 +251,17 @@ extension VoxManifest {
             transcript: String,
             language: String? = nil,
             durationSeconds: Double? = nil,
-            context: String? = nil
+            context: String? = nil,
+            model: String? = nil,
+            engine: String? = nil
         ) {
             self.file = file
             self.transcript = transcript
             self.language = language
             self.durationSeconds = durationSeconds
             self.context = context
+            self.model = model
+            self.engine = engine
         }
     }
 }
@@ -331,8 +344,13 @@ extension VoxManifest {
     /// This is critical for ethical voice cloning: the `method` field distinguishes designed
     /// voices (no real person) from cloned voices (requires consent), and the `consent` field
     /// tracks authorization status. All fields are optional but strongly recommended.
+    ///
+    /// Valid `method` values: `"designed"`, `"synthesized"`, `"cloned"`, `"preset"`, `"hybrid"`.
+    /// - `"designed"`: Text description only, no audio generated.
+    /// - `"synthesized"`: A model generated actual audio from a voice design.
+    /// - `"cloned"`: Cloned from a real person's audio (requires `source` and `consent`).
     public struct Provenance: Codable {
-        /// How the voice was created: `"designed"`, `"cloned"`, `"preset"`, or `"hybrid"`.
+        /// How the voice was created: `"designed"`, `"synthesized"`, `"cloned"`, `"preset"`, or `"hybrid"`.
         public var method: String?
 
         /// TTS engine or tool used to create the voice (e.g., `"qwen3-tts-voicedesign-1.7b"`).
@@ -347,18 +365,24 @@ extension VoxManifest {
         /// Additional notes about voice provenance and creation context.
         public var notes: String?
 
+        /// Archive-relative paths to source audio files used for cloning (v0.3.0).
+        /// Required when `method` is `"cloned"` for ethical traceability.
+        public var source: [String]?
+
         public init(
             method: String? = nil,
             engine: String? = nil,
             consent: String? = nil,
             license: String? = nil,
-            notes: String? = nil
+            notes: String? = nil,
+            source: [String]? = nil
         ) {
             self.method = method
             self.engine = engine
             self.consent = consent
             self.license = license
             self.notes = notes
+            self.source = source
         }
     }
 }
