@@ -220,6 +220,56 @@ final class RoundtripTests: XCTestCase {
         XCTAssertEqual(rewritten.manifest.voice.description, original.manifest.voice.description)
     }
 
+    func testRoundtripWithModelTaggedReferenceAudio() throws {
+        let voxFile = VoxFile(
+            name: "ModelTaggedAudio",
+            description: "Voice with model-tagged reference audio for roundtrip testing."
+        )
+
+        let universalAudio = Data(repeating: 0xAA, count: 512)
+        try voxFile.add(universalAudio, at: "reference/universal.wav", metadata: [
+            "transcript": "Universal clip with no model tag.",
+            "language": "en-US"
+        ])
+
+        let modelAudio = Data(repeating: 0xBB, count: 512)
+        try voxFile.add(modelAudio, at: "reference/qwen3-sample.wav", metadata: [
+            "transcript": "Model-tagged clip for Qwen3.",
+            "language": "en-US",
+            "model": "Qwen/Qwen3-TTS-12Hz-1.7B",
+            "engine": "qwen3-tts"
+        ])
+
+        let outputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("roundtrip-model-tagged-\(UUID().uuidString).vox")
+        defer { try? FileManager.default.removeItem(at: outputURL) }
+
+        try voxFile.write(to: outputURL)
+        let readBack = try VoxFile(contentsOf: outputURL)
+
+        XCTAssertEqual(readBack.manifest.referenceAudio?.count, 2)
+
+        // Check model-tagged clip survived roundtrip
+        let taggedClip = readBack.manifest.referenceAudio?.first { $0.model != nil }
+        XCTAssertNotNil(taggedClip)
+        XCTAssertEqual(taggedClip?.model, "Qwen/Qwen3-TTS-12Hz-1.7B")
+        XCTAssertEqual(taggedClip?.engine, "qwen3-tts")
+
+        // Check universal clip
+        let universalClip = readBack.manifest.referenceAudio?.first { $0.model == nil }
+        XCTAssertNotNil(universalClip)
+
+        // Test referenceAudio(for:) query
+        let qwenClips = readBack.referenceAudio(for: "1.7B")
+        XCTAssertEqual(qwenClips.count, 1)
+        XCTAssertEqual(qwenClips.first?.model, "Qwen/Qwen3-TTS-12Hz-1.7B")
+
+        // Fallback to universal when no match
+        let unknownClips = readBack.referenceAudio(for: "nonexistent-model")
+        XCTAssertEqual(unknownClips.count, 1, "Should fall back to universal clips")
+        XCTAssertNil(unknownClips.first?.model, "Fallback clips should be universal (no model tag)")
+    }
+
     func testWriteAndSystemUnzipValidation() throws {
         let manifest = VoxManifest(
             voxVersion: "0.1.0",

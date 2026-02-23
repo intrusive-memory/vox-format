@@ -61,9 +61,9 @@ Conforming readers MUST ignore unknown extensions.
 
 ## Implementation Status
 
-### Current State (v0.2.0)
+### Current State (v0.3.0)
 
-- ✅ Specification drafted (v0.2.0 — adds multi-model embedding metadata)
+- ✅ Specification drafted (v0.3.0 — adds per-model reference audio and ethical provenance)
 - ✅ JSON Schema validation (`schemas/manifest-v0.1.0.json`)
 - ✅ Swift reference implementation (`implementations/swift/`) — **container-first API**
   - `VoxFile` — The primary API. A mutable class that holds manifest + entries. Handles I/O (`init(contentsOf:)`, `write(to:)`), validation (`validate()`, `isValid`), model queries (`supportsModel()`, `embeddingData(for:)`), and entry management (`add()`, `remove()`, subscript).
@@ -195,6 +195,22 @@ When multiple engines support the same voice:
 - **Date handling:** ISO 8601 encoding/decoding via `VoxManifest.encoder()` and `VoxManifest.decoder()`.
 - **Extensions:** Arbitrary JSON in `extensions` dictionary uses `AnyCodable` type-erased wrapper.
 
+### Per-Model Reference Audio & Ethical Provenance (v0.3.0, 2026-02-23)
+
+**Decision:** Added optional `model` and `engine` fields to `ReferenceAudio` entries, allowing clips to be associated with specific TTS models. Untagged clips remain universal. Consumer API (`referenceAudio(for:)`) returns model-matched clips with fallback to universal.
+
+**Decision:** Added `"synthesized"` as a new `provenance.method` value, distinct from `"designed"` — `designed` is text-description-only, `synthesized` means a model generated actual audio.
+
+**Decision:** Added `provenance.source` field (`[String]`) for cloned voice traceability. Enforced via validation: cloned voices MUST have `source` (non-empty) and `consent` of `"self"` or `"granted"`.
+
+**Rationale:** Multi-model VOX files need per-model reference audio (a sample produced by model A may not be ideal for model B). Ethical rules enforce traceability and consent for cloned voices at the format level, not just by convention.
+
+**Key Types:**
+- `VoxManifest.ReferenceAudio` gains `model: String?` and `engine: String?`
+- `VoxManifest.Provenance` gains `source: [String]?`
+- `VoxFile.referenceAudio(for:)` — model-matched query with universal fallback
+- Validation: `validateProvenance()` enforces cloned voice rules, `validateReferenceAudioModelTags()` warns on orphaned model tags
+
 ### Multi-Model Embedding Support (v0.2.0, 2026-02-21)
 
 **Decision:** Added a structured `embeddings` top-level section to `manifest.json` that maps identifiers to model/file metadata. This is separate from the opaque `extensions` section.
@@ -262,4 +278,4 @@ When updating this file:
 
 ---
 
-**Last Updated:** 2026-02-21
+**Last Updated:** 2026-02-23

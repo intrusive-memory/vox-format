@@ -262,6 +262,145 @@ final class ManifestDecodingTests: XCTestCase {
         XCTAssertEqual(decodedManifest.provenance?.notes, originalManifest.provenance?.notes)
     }
 
+    // MARK: - v0.3.0 Field Tests
+
+    func testDecodeReferenceAudioWithModelAndEngine() throws {
+        let json = """
+        {
+          "vox_version": "0.3.0",
+          "id": "ad7aa7d7-570d-4f9e-99da-1bd14b99cc78",
+          "created": "2026-02-13T12:00:00Z",
+          "voice": {
+            "name": "Test",
+            "description": "A test voice for model-tagged reference audio."
+          },
+          "reference_audio": [
+            {
+              "file": "reference/sample-01.wav",
+              "transcript": "Hello world.",
+              "model": "Qwen/Qwen3-TTS-12Hz-1.7B",
+              "engine": "qwen3-tts"
+            },
+            {
+              "file": "reference/sample-02.wav",
+              "transcript": "Universal clip."
+            }
+          ]
+        }
+        """
+
+        let data = json.data(using: .utf8)!
+        let manifest = try VoxManifest.decoder().decode(VoxManifest.self, from: data)
+
+        XCTAssertEqual(manifest.referenceAudio?.count, 2)
+        XCTAssertEqual(manifest.referenceAudio?[0].model, "Qwen/Qwen3-TTS-12Hz-1.7B")
+        XCTAssertEqual(manifest.referenceAudio?[0].engine, "qwen3-tts")
+        XCTAssertNil(manifest.referenceAudio?[1].model)
+        XCTAssertNil(manifest.referenceAudio?[1].engine)
+    }
+
+    func testDecodeProvenanceWithSourceAndSynthesized() throws {
+        let json = """
+        {
+          "vox_version": "0.3.0",
+          "id": "ad7aa7d7-570d-4f9e-99da-1bd14b99cc78",
+          "created": "2026-02-13T12:00:00Z",
+          "voice": {
+            "name": "Test",
+            "description": "A test voice for synthesized provenance."
+          },
+          "provenance": {
+            "method": "synthesized",
+            "engine": "qwen3-tts-1.7b",
+            "consent": null,
+            "license": "CC0-1.0"
+          }
+        }
+        """
+
+        let data = json.data(using: .utf8)!
+        let manifest = try VoxManifest.decoder().decode(VoxManifest.self, from: data)
+
+        XCTAssertEqual(manifest.provenance?.method, "synthesized")
+    }
+
+    func testDecodeProvenanceWithClonedSource() throws {
+        let json = """
+        {
+          "vox_version": "0.3.0",
+          "id": "ad7aa7d7-570d-4f9e-99da-1bd14b99cc78",
+          "created": "2026-02-13T12:00:00Z",
+          "voice": {
+            "name": "ClonedVoice",
+            "description": "A cloned voice with full provenance."
+          },
+          "provenance": {
+            "method": "cloned",
+            "engine": "coqui-xtts",
+            "consent": "self",
+            "source": ["reference/source-recording-01.wav", "reference/source-recording-02.wav"],
+            "license": "CC-BY-4.0"
+          }
+        }
+        """
+
+        let data = json.data(using: .utf8)!
+        let manifest = try VoxManifest.decoder().decode(VoxManifest.self, from: data)
+
+        XCTAssertEqual(manifest.provenance?.method, "cloned")
+        XCTAssertEqual(manifest.provenance?.consent, "self")
+        XCTAssertEqual(manifest.provenance?.source, ["reference/source-recording-01.wav", "reference/source-recording-02.wav"])
+    }
+
+    func testRoundtripReferenceAudioModelFields() throws {
+        let original = VoxManifest(
+            voxVersion: "0.3.0",
+            id: "12345678-1234-4234-8234-123456789abc",
+            created: Date(timeIntervalSince1970: 1707825600),
+            voice: VoxManifest.Voice(
+                name: "RoundtripModel",
+                description: "Testing model field roundtrip on reference audio."
+            ),
+            referenceAudio: [
+                VoxManifest.ReferenceAudio(
+                    file: "reference/test.wav",
+                    transcript: "Hello",
+                    model: "Qwen/Qwen3-TTS-12Hz-0.6B",
+                    engine: "qwen3-tts"
+                )
+            ]
+        )
+
+        let data = try VoxManifest.encoder().encode(original)
+        let decoded = try VoxManifest.decoder().decode(VoxManifest.self, from: data)
+
+        XCTAssertEqual(decoded.referenceAudio?.first?.model, "Qwen/Qwen3-TTS-12Hz-0.6B")
+        XCTAssertEqual(decoded.referenceAudio?.first?.engine, "qwen3-tts")
+    }
+
+    func testRoundtripProvenanceSource() throws {
+        let original = VoxManifest(
+            voxVersion: "0.3.0",
+            id: "12345678-1234-4234-8234-123456789abc",
+            created: Date(timeIntervalSince1970: 1707825600),
+            voice: VoxManifest.Voice(
+                name: "RoundtripCloned",
+                description: "Testing source field roundtrip on provenance."
+            ),
+            provenance: VoxManifest.Provenance(
+                method: "cloned",
+                consent: "self",
+                source: ["reference/source.wav"]
+            )
+        )
+
+        let data = try VoxManifest.encoder().encode(original)
+        let decoded = try VoxManifest.decoder().decode(VoxManifest.self, from: data)
+
+        XCTAssertEqual(decoded.provenance?.source, ["reference/source.wav"])
+        XCTAssertEqual(decoded.provenance?.method, "cloned")
+    }
+
     func testEncodingProducesSnakeCaseKeys() throws {
         let manifest = VoxManifest(
             voxVersion: "0.1.0",

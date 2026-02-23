@@ -43,13 +43,17 @@ extension VoxFile {
         let language = entry.metadata["language"] as? String
         let duration = entry.metadata["duration_seconds"] as? Double
         let context = entry.metadata["context"] as? String
+        let model = entry.metadata["model"] as? String
+        let engine = entry.metadata["engine"] as? String
 
         let refAudio = VoxManifest.ReferenceAudio(
             file: entry.path,
             transcript: transcript,
             language: language,
             durationSeconds: duration,
-            context: context
+            context: context,
+            model: model,
+            engine: engine
         )
 
         // Replace if an entry for this file already exists.
