@@ -56,14 +56,10 @@ extension VoxFile {
             engine: engine
         )
 
-        // Replace if an entry for this file already exists.
-        if var existing = manifest.referenceAudio {
-            if let idx = existing.firstIndex(where: { $0.file == entry.path }) {
-                existing[idx] = refAudio
-            } else {
-                existing.append(refAudio)
-            }
-            manifest.referenceAudio = existing
+        // Append the new entry. Any previous entry at the same path was already
+        // removed by removeManifestEntry(for:) in add(), so no dedup needed here.
+        if manifest.referenceAudio != nil {
+            manifest.referenceAudio!.append(refAudio)
         } else {
             manifest.referenceAudio = [refAudio]
         }
