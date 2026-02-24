@@ -99,6 +99,37 @@ extension VoxFile {
         return clips.filter { $0.model == nil }
     }
 
+    /// Returns clone prompt data for the given model query, if present.
+    ///
+    /// Searches embedding entries for a clone-prompt file matching the model query.
+    /// Falls back to the legacy `embeddings/qwen3-tts/clone-prompt.bin` path.
+    ///
+    /// Unlike ``embeddingData(for:)``, this method only matches entries whose file
+    /// path contains `"clone-prompt"`, avoiding ambiguity when both clone prompts
+    /// and sample audio exist for the same model.
+    ///
+    /// - Parameter query: A model identifier or substring (e.g., "0.6b", "1.7b").
+    /// - Returns: Clone prompt binary data, or nil if no clone prompt exists for this model.
+    public func clonePromptData(for query: String) -> Data? {
+        guard let entries = manifest.embeddingEntries else {
+            // No embedding entries; check legacy path
+            return self["embeddings/qwen3-tts/clone-prompt.bin"]?.data
+        }
+        let q = query.lowercased()
+
+        // Search for an embedding entry whose file contains "clone-prompt"
+        // and whose key or model matches the query.
+        for (key, entry) in entries {
+            guard entry.file.contains("clone-prompt") else { continue }
+            if key.lowercased().contains(q) || entry.model.lowercased().contains(q) {
+                return self[entry.file]?.data
+            }
+        }
+
+        // Fall back to legacy path
+        return self["embeddings/qwen3-tts/clone-prompt.bin"]?.data
+    }
+
     /// Returns sample audio data for the given model query, if present.
     ///
     /// Searches embedding entries for a sample-audio file matching the model query.
