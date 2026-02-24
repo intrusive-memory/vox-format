@@ -98,4 +98,31 @@ extension VoxFile {
         // Fall back to universal (untagged) clips
         return clips.filter { $0.model == nil }
     }
+
+    /// Returns sample audio data for the given model query, if present.
+    ///
+    /// Searches embedding entries for a sample-audio file matching the model query.
+    /// Falls back to the legacy `embeddings/qwen3-tts/sample-audio.wav` path.
+    ///
+    /// - Parameter query: A model identifier or substring (e.g., "0.6b", "1.7b").
+    /// - Returns: WAV audio data, or nil if no sample audio exists for this model.
+    public func sampleAudioData(for query: String) -> Data? {
+        guard let entries = manifest.embeddingEntries else {
+            // No embedding entries; check legacy path
+            return self["embeddings/qwen3-tts/sample-audio.wav"]?.data
+        }
+        let q = query.lowercased()
+
+        // Search for an embedding entry whose file contains "sample-audio"
+        // and whose key or model matches the query.
+        for (key, entry) in entries {
+            guard entry.file.contains("sample-audio") else { continue }
+            if key.lowercased().contains(q) || entry.model.lowercased().contains(q) {
+                return self[entry.file]?.data
+            }
+        }
+
+        // Fall back to legacy path
+        return self["embeddings/qwen3-tts/sample-audio.wav"]?.data
+    }
 }

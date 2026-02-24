@@ -87,16 +87,17 @@ extension VoxFile {
     }
 
     /// Derives a human-readable key from an embedding path.
-    /// e.g., `"embeddings/qwen3-tts/0.6b/clone-prompt.bin"` → `"qwen3-tts-0.6b"`
+    /// e.g., `"embeddings/qwen3-tts/0.6b/clone-prompt.bin"` → `"qwen3-tts-0.6b-clone-prompt"`
     private func deriveEmbeddingKey(from path: String) -> String {
         let stripped = path.hasPrefix("embeddings/")
             ? String(path.dropFirst("embeddings/".count))
             : path
         let components = stripped.split(separator: "/").map(String.init)
         let dirs = components.dropLast()
+        let stem = (components.last.map { ($0 as NSString).deletingPathExtension } ?? "")
         if dirs.isEmpty {
-            return (stripped as NSString).deletingPathExtension
+            return stem
         }
-        return dirs.joined(separator: "-")
+        return dirs.joined(separator: "-") + "-" + stem
     }
 }
