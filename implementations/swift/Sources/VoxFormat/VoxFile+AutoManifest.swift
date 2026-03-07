@@ -56,14 +56,10 @@ extension VoxFile {
             engine: engine
         )
 
-        // Replace if an entry for this file already exists.
-        if var existing = manifest.referenceAudio {
-            if let idx = existing.firstIndex(where: { $0.file == entry.path }) {
-                existing[idx] = refAudio
-            } else {
-                existing.append(refAudio)
-            }
-            manifest.referenceAudio = existing
+        // Append the new entry. Any previous entry at the same path was already
+        // removed by removeManifestEntry(for:) in add(), so no dedup needed here.
+        if manifest.referenceAudio != nil {
+            manifest.referenceAudio!.append(refAudio)
         } else {
             manifest.referenceAudio = [refAudio]
         }
@@ -91,16 +87,17 @@ extension VoxFile {
     }
 
     /// Derives a human-readable key from an embedding path.
-    /// e.g., `"embeddings/qwen3-tts/0.6b/clone-prompt.bin"` → `"qwen3-tts-0.6b"`
+    /// e.g., `"embeddings/qwen3-tts/0.6b/clone-prompt.bin"` → `"qwen3-tts-0.6b-clone-prompt"`
     private func deriveEmbeddingKey(from path: String) -> String {
         let stripped = path.hasPrefix("embeddings/")
             ? String(path.dropFirst("embeddings/".count))
             : path
         let components = stripped.split(separator: "/").map(String.init)
         let dirs = components.dropLast()
+        let stem = (components.last.map { ($0 as NSString).deletingPathExtension } ?? "")
         if dirs.isEmpty {
-            return (stripped as NSString).deletingPathExtension
+            return stem
         }
-        return dirs.joined(separator: "-")
+        return dirs.joined(separator: "-") + "-" + stem
     }
 }

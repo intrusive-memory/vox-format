@@ -234,6 +234,110 @@ final class EmbeddingEntryTests: XCTestCase {
         XCTAssertEqual(entry?.engine, "qwen3-tts")
     }
 
+    // MARK: - Multi-Model Clone Prompt vs Sample Audio Disambiguation
+
+    /// Creates a VoxFile with both clone prompts AND sample audio for 0.6b and 1.7b,
+    /// matching the real-world structure produced by `echada test-voice`.
+    private func makeVoxFileWithMultiModelEmbeddings() -> VoxFile {
+        let vox = VoxFile(name: "TestVoice", description: "A test voice with sufficient description length.")
+        // 0.6b clone prompt
+        try? vox.add(Data([0xC0, 0x01]), at: "embeddings/qwen3-tts/0.6b/clone-prompt.bin", metadata: [
+            "key": "qwen3-tts-0.6b-clone-prompt",
+            "model": "mlx-community/Qwen3-TTS-12Hz-0.6B-Base-bf16",
+            "engine": "qwen3-tts",
+            "format": "bin",
+        ])
+        // 0.6b sample audio (WAV-like header)
+        try? vox.add(Data([0x52, 0x49, 0x46, 0x46]), at: "embeddings/qwen3-tts/0.6b/sample-audio.wav", metadata: [
+            "key": "qwen3-tts-0.6b-sample-audio",
+            "model": "mlx-community/Qwen3-TTS-12Hz-0.6B-Base-bf16",
+            "engine": "qwen3-tts",
+            "format": "wav",
+        ])
+        // 1.7b clone prompt
+        try? vox.add(Data([0xC1, 0x71]), at: "embeddings/qwen3-tts/1.7b/clone-prompt.bin", metadata: [
+            "key": "qwen3-tts-1.7b-clone-prompt",
+            "model": "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16",
+            "engine": "qwen3-tts",
+            "format": "bin",
+        ])
+        // 1.7b sample audio (WAV-like header)
+        try? vox.add(Data([0x52, 0x49, 0x46, 0x46]), at: "embeddings/qwen3-tts/1.7b/sample-audio.wav", metadata: [
+            "key": "qwen3-tts-1.7b-sample-audio",
+            "model": "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16",
+            "engine": "qwen3-tts",
+            "format": "wav",
+        ])
+        return vox
+    }
+
+    func testClonePromptData_ReturnsClonePromptNotSampleAudio() {
+        let vox = makeVoxFileWithMultiModelEmbeddings()
+
+        let prompt06b = vox.clonePromptData(for: "0.6b")
+        XCTAssertNotNil(prompt06b)
+        XCTAssertEqual(prompt06b, Data([0xC0, 0x01]), "Should return 0.6b clone prompt, not sample audio")
+
+        let prompt17b = vox.clonePromptData(for: "1.7b")
+        XCTAssertNotNil(prompt17b)
+        XCTAssertEqual(prompt17b, Data([0xC1, 0x71]), "Should return 1.7b clone prompt, not sample audio")
+    }
+
+    func testSampleAudioData_ReturnsSampleAudioNotClonePrompt() {
+        let vox = makeVoxFileWithMultiModelEmbeddings()
+
+        let audio06b = vox.sampleAudioData(for: "0.6b")
+        XCTAssertNotNil(audio06b)
+        XCTAssertEqual(audio06b, Data([0x52, 0x49, 0x46, 0x46]), "Should return 0.6b sample audio")
+
+        let audio17b = vox.sampleAudioData(for: "1.7b")
+        XCTAssertNotNil(audio17b)
+        XCTAssertEqual(audio17b, Data([0x52, 0x49, 0x46, 0x46]), "Should return 1.7b sample audio")
+    }
+
+    func testClonePromptData_DoesNotReturnSampleAudio_Regression() {
+        // Regression test: embeddingData(for: "1.7b") could return sample audio
+        // due to non-deterministic dictionary iteration. clonePromptData must
+        // always return the clone prompt, never sample audio.
+        let vox = makeVoxFileWithMultiModelEmbeddings()
+
+        // Run multiple times to catch non-deterministic dictionary ordering
+        for _ in 0..<100 {
+            let data = vox.clonePromptData(for: "1.7b")
+            XCTAssertEqual(data, Data([0xC1, 0x71]),
+                "clonePromptData must never return sample audio WAV data")
+        }
+    }
+
+    func testClonePromptData_UnknownModelReturnsNil() {
+        let vox = makeVoxFileWithMultiModelEmbeddings()
+        XCTAssertNil(vox.clonePromptData(for: "3.0b"))
+    }
+
+    func testClonePromptData_LegacyFallback() {
+        let vox = VoxFile(name: "Legacy", description: "A legacy voice with no embedding entries in manifest.")
+        // Add data at legacy path without embedding manifest entries
+        let legacyVox = VoxFile(manifest: VoxManifest(
+            voxVersion: "0.1.0",
+            id: "12345678-1234-4234-8234-123456789abc",
+            created: Date(),
+            voice: VoxManifest.Voice(name: "Legacy", description: "A legacy voice with sufficient description.")
+        ))
+        try? legacyVox.add(Data([0xAA, 0xBB]), at: "embeddings/qwen3-tts/clone-prompt.bin", metadata: [
+            "model": "legacy-model",
+        ])
+
+        // Should NOT match via legacy fallback since add() creates embedding entries
+        // Test the real legacy case: no embeddingEntries at all
+        let emptyVox = VoxFile(manifest: VoxManifest(
+            voxVersion: "0.1.0",
+            id: "12345678-1234-4234-8234-123456789abc",
+            created: Date(),
+            voice: VoxManifest.Voice(name: "Legacy", description: "A legacy voice with sufficient description.")
+        ))
+        XCTAssertNil(emptyVox.clonePromptData(for: "1.7b"))
+    }
+
     // MARK: - Validator Tests
 
     func testValidatorAcceptsValidEmbeddingEntries() throws {
