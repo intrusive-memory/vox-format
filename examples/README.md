@@ -9,6 +9,7 @@ This directory contains example `.vox` files demonstrating the VOX format specif
 - [Character with Reference Audio](#character-with-reference-audio)
 - [Character with Context](#character-with-context)
 - [Multi-Engine Example](#multi-engine-example)
+- [Multi-Language Example](#multi-language-example)
 - [Validation](#validation)
 
 ## Introduction
@@ -25,7 +26,7 @@ The minimal example demonstrates the simplest valid `.vox` file containing only 
 
 All `.vox` files must contain these fields:
 
-- `vox_version` - Specification version (currently "0.1.0")
+- `vox_version` - Specification version (currently "0.4.0")
 - `id` - Unique UUID v4 identifier
 - `created` - ISO 8601 timestamp
 - `voice.name` - Display name for the voice
@@ -144,6 +145,58 @@ unzip -p multi-engine/cross-platform.vox manifest.json | jq .extensions
 
 View the [cross-platform.vox](multi-engine/cross-platform.vox) file.
 
+## Multi-Language Example
+
+### Use Case
+
+This example (v0.4.0) demonstrates *optional per-language samples and clone prompts* for a single model. The same 0.6B model carries a default (language-neutral) clone-prompt + sample-audio pair, plus Spanish (`es`) and French-France (`fr-FR`) variants. A reader requesting a specific `(model, language)` resolves the matching language; if absent, it falls back to the base language, then to the default.
+
+### Language Resolution
+
+For a `(model, language)` lookup, readers resolve in this order:
+
+1. **Exact** language match (e.g. request `es` → the `es` embedding).
+2. **Base-language** fallback (e.g. request `es-MX` → the `es` embedding).
+3. **Default / language-neutral** embedding (the one with no `language` field).
+4. `nil` if none of the above exist.
+
+Requesting `language: null` or `"default"` resolves only the default/language-neutral embedding, preserving pre-0.4.0 behavior.
+
+### Embedding Fields
+
+Each embedding entry may carry an optional `language` field (BCP 47). Its absence marks the default/language-neutral embedding:
+
+```json
+{
+  "model": "Qwen/Qwen3-TTS-12Hz-0.6B",
+  "engine": "qwen3-tts",
+  "file": "embeddings/qwen3-tts/0.6b/es/sample-audio.wav",
+  "format": "wav",
+  "language": "es"
+}
+```
+
+The language is also reflected as a path segment (`.../0.6b/es/...`) by convention, but the `language` field is the source of truth for resolution.
+
+### File Structure
+
+```
+multi-language/manifest.json
+└── embeddings/qwen3-tts/0.6b/
+    ├── clone-prompt.bin        (default)
+    ├── sample-audio.wav        (default)
+    ├── es/clone-prompt.bin     (Spanish)
+    ├── es/sample-audio.wav     (Spanish)
+    ├── fr-FR/clone-prompt.bin  (French, France)
+    └── fr-FR/sample-audio.wav  (French, France)
+```
+
+### Inspection
+
+```bash
+cat multi-language/manifest.json | jq '.embeddings | map_values(.language)'
+```
+
 ## Validation
 
 All example `.vox` files are valid ZIP archives containing well-formed JSON manifests. You can validate them using:
@@ -160,12 +213,17 @@ unzip -p examples/minimal/narrator.vox manifest.json | jq .
 
 ### Schema Validation
 
-Once the JSON Schema is available (see `schemas/` directory):
+The canonical validator is the Swift implementation. Example and negative-fixture conformance runs in the test suite:
 
 ```bash
-# Using ajv-cli
-ajv validate -s schemas/manifest-v0.1.0.json -d manifest.json
-
-# Using check-jsonschema
-check-jsonschema --schemafile schemas/manifest-v0.1.0.json manifest.json
+cd implementations/swift
+swift test --filter SchemaExampleValidationTests
 ```
+
+To validate a single `.vox` file from the command line:
+
+```bash
+swift run vox validate examples/minimal/narrator.vox   # from tools/vox-cli
+```
+
+The JSON Schema document in `schemas/` is also usable with any external JSON Schema (Draft 2020-12) validator (e.g. `ajv`) for editor integrations — see [`schemas/README.md`](../schemas/README.md).

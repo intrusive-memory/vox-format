@@ -4,85 +4,41 @@
 
 This directory contains the JSON Schema definition for the VOX manifest format. The schema provides machine-readable validation rules for `manifest.json` files found inside `.vox` archives. It enforces structural constraints such as required fields, data types, string patterns (UUID v4, ISO 8601 timestamps, semver), and enumerated values. Use the schema during development to catch malformed manifests early, in CI pipelines to gate releases, or in editor integrations for live feedback while authoring voice identity files.
 
-The current schema version is **v0.1.0**, targeting JSON Schema Draft 2020-12.
+The current schema version is **v0.4.0**, targeting JSON Schema Draft 2020-12.
 
-## Installation
+## Validation
 
-Install one of the following validation tools:
+The **canonical validator is the Swift reference implementation** (`implementations/swift/`). It enforces the same rules as this schema (required fields, UUID v4, ISO 8601 timestamps, gender enum, age-range constraints, embedding paths) in code, and is exercised in CI.
 
-**Python (jsonschema)**
-```bash
-pip install jsonschema
-```
+### Canonical (Swift) — no external dependencies
 
-**Python (check-jsonschema CLI)**
-```bash
-pip install check-jsonschema
-```
-
-**Node.js (ajv-cli)**
-```bash
-npm install -g ajv-cli
-```
-
-## Usage
-
-### Validating a Manifest
-
-Validate a standalone `manifest.json` file against the schema:
+Example and negative-fixture conformance is validated by the test suite, which decodes each manifest with `VoxManifest` and runs `VoxFile.validate()`:
 
 ```bash
-# Using check-jsonschema
-check-jsonschema --schemafile schemas/manifest-v0.1.0.json examples/minimal/manifest.json
-
-# Using ajv-cli
-ajv validate -s schemas/manifest-v0.1.0.json -d examples/minimal/manifest.json --spec=draft2020
-
-# Using Python jsonschema
-python3 -c "
-import json, jsonschema
-schema = json.load(open('schemas/manifest-v0.1.0.json'))
-data = json.load(open('examples/minimal/manifest.json'))
-jsonschema.validate(data, schema)
-print('Valid')
-"
+cd implementations/swift
+swift test --filter SchemaExampleValidationTests
 ```
 
-### Validating a .vox File
-
-Extract the manifest from a `.vox` archive and validate it:
+This covers every example manifest, every example `.vox` archive, and every negative fixture in `schemas/test/`. To validate an arbitrary `.vox` file from the command line, use the Swift CLI:
 
 ```bash
-tmpdir=$(mktemp -d)
-unzip -q my-voice.vox -d "$tmpdir"
-check-jsonschema --schemafile schemas/manifest-v0.1.0.json "$tmpdir/manifest.json"
-rm -rf "$tmpdir"
+swift run vox validate path/to/voice.vox   # from tools/vox-cli
 ```
 
-### Running All Validations
+### Optional: validating the JSON Schema document with an external engine
 
-The included validation script tests all example manifests and `.vox` archives, plus negative test cases:
+The `manifest-v{version}.json` document is provided for editor integrations and language-agnostic tooling. Any JSON Schema (Draft 2020-12) validator works; for example with [`ajv`](https://ajv.js.org/):
 
 ```bash
-bash schemas/validate-examples.sh
+ajv validate -s schemas/manifest-v0.4.0.json -d examples/minimal/manifest.json --spec=draft2020
 ```
 
-This script validates 6 positive examples (3 standalone manifests, 3 `.vox` archives) and 5 negative test cases in `schemas/test/`.
-
-## Tools
-
-| Tool | Language | Install Command | Notes |
-|------|----------|-----------------|-------|
-| [jsonschema](https://python-jsonschema.readthedocs.io/) | Python | `pip install jsonschema` | Library for programmatic use |
-| [check-jsonschema](https://check-jsonschema.readthedocs.io/) | Python | `pip install check-jsonschema` | CLI wrapper around jsonschema |
-| [ajv-cli](https://ajv.js.org/) | Node.js | `npm install -g ajv-cli` | Fast, widely used CLI validator |
-| [jv](https://github.com/santhosh-tekuri/jsonschema) | Go | `go install github.com/santhosh-tekuri/jsonschema/cmd/jv@latest` | Lightweight Go validator |
-| [yajsv](https://github.com/neilpa/yajsv) | Go | `go install github.com/neilpa/yajsv@latest` | Batch validation support |
+[`jv`](https://github.com/santhosh-tekuri/jsonschema) (Go) is another option. These are optional conveniences — the Swift suite is the source of truth for conformance.
 
 ## Troubleshooting
 
 **Error: `'vox_version' is a required property`**
-The manifest is missing the `vox_version` field. Every VOX manifest must include `"vox_version": "0.1.0"` at the top level. Ensure the field name is spelled exactly as `vox_version` (with underscore, not camelCase).
+The manifest is missing the `vox_version` field. Every VOX manifest must include `"vox_version": "0.4.0"` at the top level. Ensure the field name is spelled exactly as `vox_version` (with underscore, not camelCase).
 
 **Error: `'<value>' does not match '<pattern>'`**
 A string field does not match its required format. Common causes: the `id` field is not a valid UUID v4 (must be lowercase hex with the version-4 nibble), or the `created` field is not in ISO 8601 format (must be `YYYY-MM-DDTHH:MM:SSZ` or with a timezone offset like `+05:30`). Double-check the exact format requirements in the schema.

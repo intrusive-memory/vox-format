@@ -8,9 +8,8 @@ This document describes the end-to-end process for creating, validating, and pub
 
 The following tools are required:
 
-- **vox-cli** -- VOX command-line tool for creating, validating, and inspecting `.vox` files. Install: `pip install vox-cli` or build from `tools/vox-cli-python/`
-- **ajv-cli** -- JSON Schema validator for manifest verification. Install: `npm install -g ajv-cli`
-- **rclone** or **aws-cli** -- File transfer to Cloudflare R2 CDN. Install: [rclone.org/install](https://rclone.org/install/) or `pip install awscli`
+- **vox** -- VOX command-line tool for creating, validating, and inspecting `.vox` files. Build from `tools/vox-cli/` (`swift build`); validate with `swift run vox validate <file>.vox`.
+- **rclone** or **aws-cli** -- File transfer to Cloudflare R2 CDN. Install: [rclone.org/install](https://rclone.org/install/) or `brew install awscli`
 
 ## Steps
 
@@ -83,7 +82,7 @@ vox validate --strict NARR-001.vox
 Also validate the manifest against the JSON Schema:
 
 ```bash
-ajv validate -s schemas/manifest-v0.1.0.json -d ./tmp-narr-001/manifest.json
+swift run vox validate ./narr-001.vox   # from tools/vox-cli
 ```
 
 ### Step 6: Upload to CDN
@@ -165,4 +164,4 @@ Before merging a new library voice, verify all of the following:
 
 **Symptom:** `index.json` fails to parse or search returns unexpected results.
 
-**Common causes:** Trailing comma after last entry, mismatched brackets, or duplicate voice IDs. Validate with `python -m json.tool index.json` to find syntax errors. Ensure each entry has all required fields.
+**Common causes:** Trailing comma after last entry, mismatched brackets, or duplicate voice IDs. Validate with `jq . index.json` to find syntax errors. Ensure each entry has all required fields.

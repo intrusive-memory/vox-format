@@ -19,6 +19,35 @@ VOX (`.vox`) is an open, vendor-neutral file format for persisting voice identit
 
 ---
 
+## ⚠️ Core Invariant: One Voice = One `.vox` File
+
+A voice is identified by `voice.name` and lives in **exactly one** `.vox` file.
+ALL model variants and engines are embeddings **inside that single file**, keyed
+in the `embeddings` map — never separate files per model.
+
+- ✅ `alice.vox` containing keys `qwen3-tts-0.6b`, `qwen3-tts-1.7b`, `elevenlabs`, …
+- ❌ `alice-0.6b.vox` + `alice-1.7b.vox` (WRONG — fragments one identity across files)
+
+When adding a new model to an existing voice: **open** the existing `.vox`,
+`add()` the new embedding (with `model`/`engine`/`language` metadata), and
+`write()` it back. Do NOT create a new file. See `examples/multi-model/` and
+`examples/multi-language/`.
+
+**Language variants follow the exact same rule.** Language is *always optional*.
+A language-specific sample / clone prompt is just another keyed embedding in the
+**same** file, sitting alongside the default (language-neutral) one — never a
+separate file per language. The file holds **both** a default and any
+language-specific versions of the voice-source keys.
+
+- ✅ one `alice.vox` with keys `qwen3-tts-0.6b` (default), `…-es`, `…-fr-FR`
+- ❌ `alice.vox` + `alice-es.vox` (WRONG — same fragmentation, now by language)
+
+Readers resolve a `(model, language)` lookup with fallback: exact language →
+base-language (`fr-FR` → `fr`) → **default** → nil. The default is always used
+when no language-specific key exists, so a missing language never breaks a voice.
+
+---
+
 ## Design Principles
 
 1. **Vendor-neutral** — No engine-specific data is required. Any TTS system can consume a `.vox` file.
@@ -61,12 +90,12 @@ Conforming readers MUST ignore unknown extensions.
 
 ## Implementation Status
 
-### Current State (v0.3.0)
+### Current State (v0.4.0)
 
-- ✅ Specification drafted (v0.3.0 — adds per-model reference audio and ethical provenance)
-- ✅ JSON Schema validation (`schemas/manifest-v0.1.0.json`)
+- ✅ Specification drafted (v0.4.0 — adds optional per-language samples & clone prompts; v0.3.0 — per-model reference audio and ethical provenance)
+- ✅ JSON Schema validation (`schemas/manifest-v0.4.0.json`)
 - ✅ Swift reference implementation (`implementations/swift/`) — **container-first API**
-  - `VoxFile` — The primary API. A mutable class that holds manifest + entries. Handles I/O (`init(contentsOf:)`, `write(to:)`), validation (`validate()`, `isValid`), model queries (`supportsModel()`, `embeddingData(for:)`), and entry management (`add()`, `remove()`, subscript).
+  - `VoxFile` — The primary API. A mutable class that holds manifest + entries. Handles I/O (`init(contentsOf:)`, `write(to:)`), validation (`validate()`, `isValid`), model queries (`supportsModel()`, `embeddingData(for:)`, `sampleAudioData(for:language:)`, `clonePromptData(for:language:)`, `sampleAudioLanguages(for:)`), and entry management (`add()`, `remove()`, subscript).
   - `VoxEntry` — An archive entry carrying `path`, `data`, `mimeType`, and `metadata`.
   - `VoxManifest` — Codable manifest model with snake_case JSON mapping.
   - `VoxMigrator` — Internal; auto-migrates v0.1.0 manifests on read.
@@ -194,6 +223,23 @@ When multiple engines support the same voice:
 - **ZIP format:** Uses ZIPFoundation library. Archives verified by checking `PK\x03\x04` magic bytes after write.
 - **Date handling:** ISO 8601 encoding/decoding via `VoxManifest.encoder()` and `VoxManifest.decoder()`.
 - **Extensions:** Arbitrary JSON in `extensions` dictionary uses `AnyCodable` type-erased wrapper.
+
+### Optional Per-Language Samples & Clone Prompts (v0.4.0, 2026-06-08)
+
+**Decision:** Added an optional `language` field (BCP 47) to `EmbeddingEntry`. A single model may carry a default (language-neutral) clone-prompt + sample-audio pair plus language-specific variants. The language is stored both as the `language` field (source of truth for resolution) and, by convention, as a path segment under the existing tree: `embeddings/<engine>/<slug>/<lang>/...`. **No new `samples/` tree** — the `^embeddings/` schema pattern and reader prefix are preserved.
+
+**Decision:** Resolution for `(model, language)` is: exact language → base-language (`fr-FR` → stored `fr`) → default/language-neutral → `nil`. A missing language never throws on its own. `language: nil` or `"default"` resolves only the default, identical to the pre-0.4.0 single-arg API.
+
+**Rationale:** echada needs per-language *clone prompts* (the load-bearing artifact that drives synthesis) so a voice can render a Spanish vs. English lock for the same model; per-language *sample audio* is the preview counterpart. Additive optional field → minor bump (0.3.0 → 0.4.0); old files validate unchanged.
+
+**Key Types / API:**
+- `VoxManifest.EmbeddingEntry.language: String?` (appended last in `init`, defaulted `nil` — preserves positional call sites; Codable-optional so old files decode as `nil`).
+- `VoxFile.sampleAudioData(for:language:)` / `clonePromptData(for:language:)` — language-aware overloads; the single-arg forms delegate with `language: nil`.
+- `VoxFile.sampleAudioLanguages(for:)` / `clonePromptLanguages(for:)` — discovery helpers (language-specific only; empty = default-only).
+- `addEmbeddingManifestEntry` reads `metadata["language"]`. `deriveEmbeddingKey` keeps default vs `<lang>` keys distinct (e.g. `qwen3-tts-0.6b-sample-audio` vs `qwen3-tts-0.6b-es-sample-audio`).
+- Schema: `schemas/manifest-v0.4.0.json`. Example: `examples/multi-language/`. Tests: `EmbeddingLanguageTests.swift` (21 cases) + `SchemaExampleValidationTests.swift` (validates every example manifest/archive and the negative fixtures in pure Swift, replacing the former Python `validate-examples.sh`).
+
+**Cross-repo:** vox-format provides the field + matcher only. SwiftVoxAlta (`VoxExporter` language paths, `VoxImporter` language read) and SwiftEchada (per-language clone-prompt writes) own their writer/reader changes under sibling TODOs using this same path/metadata scheme.
 
 ### Per-Model Reference Audio & Ethical Provenance (v0.3.0, 2026-02-23)
 

@@ -4,7 +4,7 @@
 
 Thank you for your interest in contributing to the VOX Format project! VOX is an open, vendor-neutral file format for persisting voice identities across text-to-speech systems. This project welcomes contributions in the form of specification improvements, example voices, reference implementations, tooling, and documentation.
 
-We value thoughtful design, clear documentation, and ethical voice usage. Whether you're fixing a typo, proposing a new field, or implementing VOX support in a new programming language, your contributions help make voice portability a reality.
+We value thoughtful design, clear documentation, and ethical voice usage. Whether you're fixing a typo, proposing a new field, or improving the Swift implementation, your contributions help make voice portability a reality. This repository is Swift-only — implementation contributions target `implementations/swift/`.
 
 ---
 
@@ -43,7 +43,7 @@ The `examples/` directory contains reference `.vox` files demonstrating various 
 
 ### Checklist for Adding .vox Files
 
-- [ ] File must validate against `schemas/manifest-v{version}.json` using ajv-cli or check-jsonschema
+- [ ] File must validate via the Swift test suite (add its manifest to `SchemaExampleValidationTests`)
 - [ ] File must have a unique use case (don't duplicate existing examples)
 - [ ] File must be documented in `examples/README.md` with description and use case
 - [ ] File must use description-only voice design OR public domain/CC0 audio (no copyrighted or non-consented audio)
@@ -54,44 +54,36 @@ The `examples/` directory contains reference `.vox` files demonstrating various 
 Run validation before submitting:
 
 ```bash
-# Extract manifest
-unzip -p examples/your-file.vox manifest.json > /tmp/manifest.json
-
-# Validate
-ajv validate -s schemas/manifest-v0.1.0.json -d /tmp/manifest.json
+# Add your example's manifest path to SchemaExampleValidationTests, then:
+cd implementations/swift && swift test --filter SchemaExampleValidationTests
 ```
 
 ---
 
-## Implementations
+## Implementation
 
-VOX reference implementations live in `implementations/{language}/`. Currently supported:
+VOX has a single, canonical reference implementation, written in **Swift**:
 - **Swift** (macOS/iOS) — `implementations/swift/`
-- **Python** (cross-platform) — `implementations/python/` (in progress)
 
-### Guidelines for New Language Implementations
+This project is Swift-only. There is no plan for implementations in other languages; contributions should target the Swift implementation. (The vendor-neutral `.vox` format itself remains language-agnostic — anyone can read or write the ZIP+JSON container — but this repository maintains only the Swift code.)
 
-If you want to add VOX support for a new programming language:
+### Guidelines for Changing the Swift Implementation
 
-1. **Must have read/write/validate.** Core functionality:
-   - Read a `.vox` file (unzip, parse manifest, enumerate assets)
-   - Write a `.vox` file (encode manifest, create ZIP archive)
-   - Validate a manifest against the spec (required fields, formats, constraints)
+Any change to `implementations/swift/` must preserve the core contract:
 
-2. **Must pass all examples.** Your implementation should successfully read and validate all files in `examples/`.
+1. **Read/write/validate stay intact.** The implementation must continue to read a `.vox` file (unzip, parse manifest, enumerate assets), write a `.vox` file (encode manifest, create ZIP archive), and validate a manifest against the spec (required fields, formats, constraints).
 
-3. **Must have tests.** Minimum test coverage:
+2. **All examples keep passing.** `SchemaExampleValidationTests` reads and validates every file in `examples/`; new examples must be added to it.
+
+3. **Tests required.** Maintain coverage:
    - Unit tests for manifest decoding/encoding
    - Unit tests for validation logic
    - Integration tests with real `.vox` files
    - Target: 80%+ code coverage
 
-4. **Must have documentation.** Include a README in your implementation directory with:
-   - Installation instructions
-   - Quick start example (read, write, validate)
-   - API reference or link to generated docs
+4. **Documentation stays current.** Update `implementations/swift/`'s README and `AGENTS.md` when behavior or the public API changes.
 
-5. **Follow language idioms.** Use the conventions of your language (e.g., snake_case in Python, camelCase in JavaScript, SwiftLint in Swift).
+5. **Follow Swift idioms.** camelCase, SwiftLint, the Swift API Design Guidelines, and DocC comments on public APIs.
 
 ---
 
@@ -105,22 +97,10 @@ If you want to add VOX support for a new programming language:
 - Prefer `struct` over `class` for immutable data
 - Use `Codable` for JSON serialization
 
-### Python
-
-- Use [Black](https://black.readthedocs.io/) formatting (line length 100)
-- Type hints required for all function signatures
-- Docstrings required for all public classes/functions (Google style)
-- Use `dataclasses` for data structures
-- Use `pathlib.Path` for file paths (not strings)
-
 Run formatters before committing:
 
 ```bash
-# Swift
 swiftlint autocorrect
-
-# Python
-black implementations/python/
 ```
 
 ---
@@ -138,13 +118,8 @@ All contributions that add or modify code must include tests.
 ### Running Tests
 
 ```bash
-# Swift
 cd implementations/swift
 swift test
-
-# Python
-cd implementations/python
-pytest --cov=voxformat --cov-report=term-missing
 ```
 
 ### Writing Good Tests
@@ -161,19 +136,15 @@ pytest --cov=voxformat --cov-report=term-missing
 1. **Fork the repository.** Create your own fork of `intrusive-memory/vox-format`.
 
 2. **Create a branch.** Use a descriptive branch name:
-   - `feature/add-python-implementation`
+   - `feature/per-language-samples`
    - `fix/validation-uuid-check`
    - `docs/update-examples-readme`
 
 3. **Make changes.** Follow the guidelines above for your contribution type.
 
-4. **Run tests.** Ensure all tests pass before submitting:
+4. **Run tests.** Ensure all tests pass before submitting (example/schema validation runs as part of the suite via `SchemaExampleValidationTests`):
    ```bash
-   # Swift
    cd implementations/swift && swift test
-
-   # Validate examples
-   bash schemas/validate-examples.sh
    ```
 
 5. **Submit PR.** Open a pull request with:

@@ -42,11 +42,11 @@ When working on the specification (`docs/VOX-FORMAT.md`):
 
 ### Implementation Work
 
-When building reference implementations:
-- **Multi-language:** Gemini handles many languages well — consider Python, Swift, Rust, TypeScript
+This project is **Swift-only**. The single reference implementation lives in `implementations/swift/`; all implementation work targets it. When working on it:
+- **Swift only:** do not add implementations in other languages — contribute to `implementations/swift/`
 - **Test generation:** Generate comprehensive test suites with edge cases
-- **Documentation generation:** Auto-generate API docs from code
-- **Benchmark:** Compare performance across implementations
+- **Documentation generation:** Keep DocC comments and `AGENTS.md` current
+- **Benchmark:** Measure performance-critical paths within the Swift implementation
 
 ---
 
@@ -71,14 +71,14 @@ When building reference implementations:
 5. Document in README or examples index
 6. Reference in specification if it demonstrates a key concept
 
-### Building Reference Implementation
+### Working on the Swift Implementation
 
 1. Check `AGENTS.md` for current implementation status
-2. Create language-specific subdirectory (e.g., `swift/`, `python/`, `rust/`)
+2. Work in `implementations/swift/` (the only implementation — Swift-only project)
 3. Implement core: read `.vox`, validate structure, extract components
 4. Generate comprehensive tests with edge cases
 5. Add benchmarks if performance-critical
-6. Generate API documentation
+6. Keep DocC API documentation current
 7. Update `AGENTS.md` implementation status
 
 ---

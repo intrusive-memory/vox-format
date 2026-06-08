@@ -411,18 +411,27 @@ extension VoxManifest {
         /// Human-readable note about this embedding.
         public var description: String?
 
+        /// Language of this embedding/sample in BCP 47 format (v0.4.0).
+        ///
+        /// `nil` means the embedding is default/language-neutral and acts as the fallback
+        /// when no language-specific match is found. When set (e.g. `"es"`, `"fr-FR"`), the
+        /// embedding is specific to that language. See ``VoxFile/sampleAudioData(for:language:)``.
+        public var language: String?
+
         public init(
             model: String,
             engine: String? = nil,
             file: String,
             format: String? = nil,
-            description: String? = nil
+            description: String? = nil,
+            language: String? = nil
         ) {
             self.model = model
             self.engine = engine
             self.file = file
             self.format = format
             self.description = description
+            self.language = language
         }
     }
 }
