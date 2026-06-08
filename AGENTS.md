@@ -237,7 +237,7 @@ When multiple engines support the same voice:
 - `VoxFile.sampleAudioData(for:language:)` / `clonePromptData(for:language:)` — language-aware overloads; the single-arg forms delegate with `language: nil`.
 - `VoxFile.sampleAudioLanguages(for:)` / `clonePromptLanguages(for:)` — discovery helpers (language-specific only; empty = default-only).
 - `addEmbeddingManifestEntry` reads `metadata["language"]`. `deriveEmbeddingKey` keeps default vs `<lang>` keys distinct (e.g. `qwen3-tts-0.6b-sample-audio` vs `qwen3-tts-0.6b-es-sample-audio`).
-- Schema: `schemas/manifest-v0.4.0.json`. Example: `examples/multi-language/`. Tests: `EmbeddingLanguageTests.swift` (20 cases).
+- Schema: `schemas/manifest-v0.4.0.json`. Example: `examples/multi-language/`. Tests: `EmbeddingLanguageTests.swift` (21 cases) + `SchemaExampleValidationTests.swift` (validates every example manifest/archive and the negative fixtures in pure Swift, replacing the former Python `validate-examples.sh`).
 
 **Cross-repo:** vox-format provides the field + matcher only. SwiftVoxAlta (`VoxExporter` language paths, `VoxImporter` language read) and SwiftEchada (per-language clone-prompt writes) own their writer/reader changes under sibling TODOs using this same path/metadata scheme.
 
