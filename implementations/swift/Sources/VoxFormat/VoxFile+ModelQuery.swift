@@ -111,23 +111,31 @@ extension VoxFile {
     /// - Parameter query: A model identifier or substring (e.g., "0.6b", "1.7b").
     /// - Returns: Clone prompt binary data, or nil if no clone prompt exists for this model.
     public func clonePromptData(for query: String) -> Data? {
-        guard let entries = manifest.embeddingEntries else {
-            // No embedding entries; check legacy path
-            return self["embeddings/qwen3-tts/clone-prompt.bin"]?.data
-        }
-        let q = query.lowercased()
+        clonePromptData(for: query, language: nil)
+    }
 
-        // Search for an embedding entry whose file contains "clone-prompt"
-        // and whose key or model matches the query.
-        for (key, entry) in entries {
-            guard entry.file.contains("clone-prompt") else { continue }
-            if key.lowercased().contains(q) || entry.model.lowercased().contains(q) {
-                return self[entry.file]?.data
-            }
-        }
-
-        // Fall back to legacy path
-        return self["embeddings/qwen3-tts/clone-prompt.bin"]?.data
+    /// Returns clone prompt data for the given model and language, with fallback (v0.4.0).
+    ///
+    /// Resolution order for a `(model, language)` lookup:
+    /// 1. An embedding whose `language` matches `language` exactly (case-insensitive).
+    /// 2. The base-language match (a query of `"fr-FR"` matches a stored `"fr"`).
+    /// 3. The default / language-neutral embedding (`language == nil`).
+    /// 4. The legacy `embeddings/qwen3-tts/clone-prompt.bin` path.
+    ///
+    /// Passing `language` as `nil` or `"default"` resolves only the default/language-neutral
+    /// embedding (then legacy), behaving identically to ``clonePromptData(for:)``.
+    ///
+    /// - Parameters:
+    ///   - query: A model identifier or substring (e.g., "0.6b", "1.7b").
+    ///   - language: A BCP 47 language tag (e.g., "es", "fr-FR"), or `nil`/`"default"`.
+    /// - Returns: Clone prompt binary data, or nil if none resolves.
+    public func clonePromptData(for query: String, language: String?) -> Data? {
+        embeddingData(
+            fileContaining: "clone-prompt",
+            query: query,
+            language: language,
+            legacyPath: "embeddings/qwen3-tts/clone-prompt.bin"
+        )
     }
 
     /// Returns sample audio data for the given model query, if present.
@@ -138,22 +146,134 @@ extension VoxFile {
     /// - Parameter query: A model identifier or substring (e.g., "0.6b", "1.7b").
     /// - Returns: WAV audio data, or nil if no sample audio exists for this model.
     public func sampleAudioData(for query: String) -> Data? {
+        sampleAudioData(for: query, language: nil)
+    }
+
+    /// Returns sample audio data for the given model and language, with fallback (v0.4.0).
+    ///
+    /// Resolution order for a `(model, language)` lookup:
+    /// 1. An embedding whose `language` matches `language` exactly (case-insensitive).
+    /// 2. The base-language match (a query of `"fr-FR"` matches a stored `"fr"`).
+    /// 3. The default / language-neutral embedding (`language == nil`).
+    /// 4. The legacy `embeddings/qwen3-tts/sample-audio.wav` path.
+    ///
+    /// Passing `language` as `nil` or `"default"` resolves only the default/language-neutral
+    /// embedding (then legacy), behaving identically to ``sampleAudioData(for:)``.
+    ///
+    /// - Parameters:
+    ///   - query: A model identifier or substring (e.g., "0.6b", "1.7b").
+    ///   - language: A BCP 47 language tag (e.g., "es", "fr-FR"), or `nil`/`"default"`.
+    /// - Returns: WAV audio data, or nil if none resolves.
+    public func sampleAudioData(for query: String, language: String?) -> Data? {
+        embeddingData(
+            fileContaining: "sample-audio",
+            query: query,
+            language: language,
+            legacyPath: "embeddings/qwen3-tts/sample-audio.wav"
+        )
+    }
+
+    /// Languages for which a sample-audio embedding exists for the given model (v0.4.0).
+    ///
+    /// Only language-specific samples are listed; the default/language-neutral sample is
+    /// not represented (an empty result means "default only" or "no samples"). Consumers
+    /// use this to discover what languages a voice ships before requesting one.
+    ///
+    /// - Parameter query: A model identifier or substring (e.g., "0.6b", "1.7b").
+    /// - Returns: Sorted, de-duplicated BCP 47 language tags as stored on the entries.
+    public func sampleAudioLanguages(for query: String) -> [String] {
+        embeddingLanguages(fileContaining: "sample-audio", query: query)
+    }
+
+    /// Languages for which a clone-prompt embedding exists for the given model (v0.4.0).
+    ///
+    /// See ``sampleAudioLanguages(for:)`` for semantics.
+    public func clonePromptLanguages(for query: String) -> [String] {
+        embeddingLanguages(fileContaining: "clone-prompt", query: query)
+    }
+
+    // MARK: - Private Language-Aware Resolution
+
+    /// Resolves embedding data by file-substring, model query, and language with fallback.
+    ///
+    /// Implements the §1 / D6 fallback chain: exact language → base-language → default
+    /// (language-neutral) → legacy path. See ``sampleAudioData(for:language:)``.
+    private func embeddingData(
+        fileContaining substring: String,
+        query: String,
+        language: String?,
+        legacyPath: String
+    ) -> Data? {
         guard let entries = manifest.embeddingEntries else {
             // No embedding entries; check legacy path
-            return self["embeddings/qwen3-tts/sample-audio.wav"]?.data
+            return self[legacyPath]?.data
         }
         let q = query.lowercased()
 
-        // Search for an embedding entry whose file contains "sample-audio"
-        // and whose key or model matches the query.
-        for (key, entry) in entries {
-            guard entry.file.contains("sample-audio") else { continue }
-            if key.lowercased().contains(q) || entry.model.lowercased().contains(q) {
-                return self[entry.file]?.data
+        // Candidate entry-languages to try, in priority order. `nil` = language-neutral.
+        let candidates = languageCandidates(for: language)
+
+        for candidate in candidates {
+            for (key, entry) in entries {
+                guard entry.file.contains(substring) else { continue }
+                guard key.lowercased().contains(q) || entry.model.lowercased().contains(q) else { continue }
+                if entryLanguage(entry, matches: candidate) {
+                    return self[entry.file]?.data
+                }
             }
         }
 
         // Fall back to legacy path
-        return self["embeddings/qwen3-tts/sample-audio.wav"]?.data
+        return self[legacyPath]?.data
+    }
+
+    /// All distinct language tags (as stored) for matching embeddings of a given kind.
+    private func embeddingLanguages(fileContaining substring: String, query: String) -> [String] {
+        guard let entries = manifest.embeddingEntries else { return [] }
+        let q = query.lowercased()
+        var seen = Set<String>()
+        var result: [String] = []
+        for (key, entry) in entries {
+            guard entry.file.contains(substring) else { continue }
+            guard key.lowercased().contains(q) || entry.model.lowercased().contains(q) else { continue }
+            guard let lang = entry.language else { continue }
+            if seen.insert(lang.lowercased()).inserted {
+                result.append(lang)
+            }
+        }
+        return result.sorted()
+    }
+
+    /// Ordered list of candidate entry-languages for a requested `language`.
+    ///
+    /// - `nil` / `"default"` → `[nil]` (default/language-neutral only — legacy behavior).
+    /// - `"fr-FR"` → `["fr-fr", "fr", nil]` (exact → base-language → default).
+    /// - `"es"` → `["es", nil]` (exact → default).
+    private func languageCandidates(for language: String?) -> [String?] {
+        guard let language, language.lowercased() != "default" else {
+            return [nil]
+        }
+        let lang = language.lowercased()
+        var candidates: [String?] = [lang]
+        if let dash = lang.firstIndex(of: "-") {
+            let base = String(lang[lang.startIndex..<dash])
+            if !base.isEmpty, base != lang {
+                candidates.append(base)
+            }
+        }
+        candidates.append(nil)
+        return candidates
+    }
+
+    /// Whether an entry's stored language matches a candidate (case-insensitive; `nil` == neutral).
+    private func entryLanguage(_ entry: VoxManifest.EmbeddingEntry, matches candidate: String?) -> Bool {
+        switch (entry.language, candidate) {
+        case (nil, nil):
+            return true
+        case let (stored?, wanted?):
+            return stored.lowercased() == wanted
+        default:
+            return false
+        }
     }
 }

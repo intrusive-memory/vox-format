@@ -1,7 +1,7 @@
 # VOX: Open Voice Identity Format
 
 **Status:** Draft / RFC
-**Version:** 0.3.0
+**Version:** 0.4.0
 **Authors:** intrusive-memory  
 **Repository:** [SwiftEchada](https://github.com/intrusive-memory/SwiftEchada)
 
@@ -23,7 +23,7 @@ The immediate use case is the **intrusive-memory** screenplay-to-audio pipeline:
 
 2. **[SwiftVoxAlta](https://github.com/intrusive-memory/SwiftVoxAlta)** uses Qwen3-TTS on Apple Silicon to design voices from character descriptions, lock voice identities via clone prompts, and render dialogue audio. VoxAlta can create rich voice identities — but has no way to persist them beyond runtime.
 
-The gap: when Echada casts a character and VoxAlta designs a voice for them, that voice exists only as an ephemeral Python/Swift object. If the model is reloaded, the session ends, or the user switches to a different TTS engine, the voice is gone. The user must re-design or re-clone from scratch.
+The gap: when Echada casts a character and VoxAlta designs a voice for them, that voice exists only as an ephemeral in-memory object. If the model is reloaded, the session ends, or the user switches to a different TTS engine, the voice is gone. The user must re-design or re-clone from scratch.
 
 A `.vox` file is the **headshot and voice reel** that bridges casting (Echada) and performance (VoxAlta or any provider).
 
@@ -74,7 +74,7 @@ The manifest is the only required file. It must be valid JSON encoded as UTF-8.
 
 ```json
 {
-  "vox_version": "0.1.0",
+  "vox_version": "0.4.0",
   "id": "uuid-v4-here",
   "created": "2026-02-13T00:00:00Z",
   "modified": "2026-02-13T00:00:00Z",
@@ -256,6 +256,7 @@ Each key is a human-readable identifier, and the value describes the model that 
 | `engine` | No | string | Engine namespace (e.g., `"qwen3-tts"`). Links to the `extensions` section. |
 | `format` | No | string | Binary format hint: `"bin"`, `"safetensors"`, `"onnx"`, etc. |
 | `description` | No | string | Human-readable note about this embedding. |
+| `language` | No | string | **(v0.4.0)** Language of this embedding/sample in BCP 47 format (e.g., `"en-US"`, `"es"`, `"fr-FR"`). Absent = default/language-neutral. See [Per-Language Samples](#per-language-samples-v040). |
 
 #### Directory Structure for Multi-Model Embeddings
 
@@ -278,6 +279,45 @@ Implementations should provide query methods for model support:
 - `embeddingData(for: "0.6b")` → binary `Data` for the 0.6B clone prompt
 
 The `embeddings` section is optional. Files without it remain valid — backward compatibility with v0.1.0 is preserved.
+
+#### Per-Language Samples (v0.4.0)
+
+A single model may carry **optional per-language clone prompts and sample audio** alongside its default (language-neutral) embedding. Each language-specific embedding sets the optional `language` field (BCP 47) and, by convention, places the language as a path segment after the model variant:
+
+```
+embeddings/
+  qwen3-tts/
+    0.6b/
+      clone-prompt.bin          ← default (language-neutral, no `language` field)
+      sample-audio.wav          ← default
+      es/
+        clone-prompt.bin        ← Spanish (language: "es")
+        sample-audio.wav
+      fr-FR/
+        clone-prompt.bin        ← French, France (language: "fr-FR")
+        sample-audio.wav
+```
+
+The `language` **field is the source of truth** for resolution; the path segment is a human-browsable convention only. The `file` path still begins with `embeddings/` (the language is a segment *under* it), so no layout change is required and old files remain valid.
+
+**Resolution order** for a `(model, language)` lookup (implemented verbatim by conforming readers):
+
+1. **Exact** language match — an embedding whose `language` equals the requested language (case-insensitive).
+2. **Base-language** fallback — a request of `"fr-FR"` matches a stored `"fr"` when no exact `"fr-FR"` exists.
+3. **Default / language-neutral** embedding — the one with no `language` field.
+4. Otherwise `nil` — a missing language never throws on its own.
+
+A request with `language` of `null` or `"default"` resolves **only** the default/language-neutral embedding (then any legacy fallback), behaving exactly as the pre-0.4.0 language-less API. This is the entire backward-compatibility contract: old files (no `language` anywhere) always take step 3, identical to prior behavior.
+
+##### Per-Language Consumer API
+
+- `sampleAudioData(for: "0.6b", language: "es")` → Spanish sample (or default fallback)
+- `clonePromptData(for: "0.6b", language: "fr-FR")` → French-France clone prompt (the load-bearing one — it drives synthesis)
+- `sampleAudioLanguages(for: "0.6b")` / `clonePromptLanguages(for: "0.6b")` → `["es", "fr-FR"]` (language-specific only; empty = default-only)
+
+The single-argument `sampleAudioData(for:)` / `clonePromptData(for:)` remain and are equivalent to passing `language: nil`.
+
+See [`examples/multi-language/`](../examples/multi-language/manifest.json) for a complete example.
 
 ### Provenance
 

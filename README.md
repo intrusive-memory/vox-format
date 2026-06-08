@@ -221,7 +221,6 @@ See [`tools/vox-cli/`](tools/vox-cli/) for build instructions.
 - ✅ Swift Package Manager support (URL-based dependency)
 
 ### Planned
-- ⏳ Reference implementation in Python (for broader adoption)
 - ⏳ SwiftEchada integration (`echada cast` command)
 - ⏳ SwiftVoxAlta `.vox` loader
 
@@ -252,7 +251,7 @@ Part of the **intrusive-memory** ecosystem:
 This is an open specification under CC0 (public domain). Contributions welcome:
 
 - **Specification improvements:** Open an issue or PR on [`docs/VOX-FORMAT.md`](docs/VOX-FORMAT.md)
-- **Reference implementations:** Add to `implementations/<language>/`
+- **Swift implementation:** Contribute to `implementations/swift/` (this is a Swift-only project)
 - **Example files:** Add to `examples/` with documentation
 - **Tooling:** Validators, converters, GUI editors
 

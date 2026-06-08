@@ -1,2 +1,0 @@
-[console_scripts]
-vox = vox_cli.cli:cli

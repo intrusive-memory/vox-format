@@ -70,6 +70,7 @@ extension VoxFile {
         let engine = entry.metadata["engine"] as? String
         let format = entry.metadata["format"] as? String
         let description = entry.metadata["description"] as? String
+        let language = entry.metadata["language"] as? String
         let key = entry.metadata["key"] as? String ?? deriveEmbeddingKey(from: entry.path)
 
         let embeddingEntry = VoxManifest.EmbeddingEntry(
@@ -77,7 +78,8 @@ extension VoxFile {
             engine: engine,
             file: entry.path,
             format: format,
-            description: description
+            description: description,
+            language: language
         )
 
         if manifest.embeddingEntries == nil {

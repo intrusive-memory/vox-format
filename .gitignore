@@ -23,6 +23,11 @@ build/
 DerivedData/
 Package.resolved
 
+# Build output / coverage artifacts
+bin/
+*.profraw
+*.profdata
+
 # macOS
 .DS_Store
 ._*
