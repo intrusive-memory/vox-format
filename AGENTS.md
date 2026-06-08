@@ -19,6 +19,22 @@ VOX (`.vox`) is an open, vendor-neutral file format for persisting voice identit
 
 ---
 
+## ⚠️ Core Invariant: One Voice = One `.vox` File
+
+A voice is identified by `voice.name` and lives in **exactly one** `.vox` file.
+ALL model variants and engines are embeddings **inside that single file**, keyed
+in the `embeddings` map — never separate files per model.
+
+- ✅ `alice.vox` containing keys `qwen3-tts-0.6b`, `qwen3-tts-1.7b`, `elevenlabs`, …
+- ❌ `alice-0.6b.vox` + `alice-1.7b.vox` (WRONG — fragments one identity across files)
+
+When adding a new model to an existing voice: **open** the existing `.vox`,
+`add()` the new embedding (with `model`/`engine`/`language` metadata), and
+`write()` it back. Do NOT create a new file. See `examples/multi-model/` and
+`examples/multi-language/`.
+
+---
+
 ## Design Principles
 
 1. **Vendor-neutral** — No engine-specific data is required. Any TTS system can consume a `.vox` file.

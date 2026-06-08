@@ -6,7 +6,7 @@
 
 ![Swift Tests](https://github.com/intrusive-memory/vox-format/actions/workflows/swift-tests.yml/badge.svg)
 
-**Version:** 0.2.0
+**Version:** 0.4.0
 **License:** [CC0 1.0 Universal](LICENSE) (Public Domain)
 
 VOX (`.vox`) is an open, vendor-neutral file format for persisting voice identities for text-to-speech synthesis. Think of it as a **headshot and voice reel** for AI voices — capturing everything needed to reproduce a consistent voice across different TTS engines.
@@ -44,6 +44,18 @@ character.vox (ZIP archive)
 └── assets/                # Headshot, etc.
     └── headshot.png
 ```
+
+> ### ⚠️ One Voice = One `.vox` File
+>
+> A voice is identified by its **name** and lives in a **single** `.vox` file. Every
+> model variant and engine (e.g. Qwen3-TTS 0.6B *and* 1.7B *and* ElevenLabs) is stored
+> as an embedding **inside that one file**, keyed in the `embeddings` map.
+>
+> - ✅ `alice.vox` holding `qwen3-tts-0.6b`, `qwen3-tts-1.7b`, `elevenlabs`, …
+> - ❌ `alice-0.6b.vox` + `alice-1.7b.vox` — **don't** split one voice across files.
+>
+> To add a model to an existing voice, open that `.vox`, add the embedding, and write
+> it back — don't create a new file.
 
 ---
 
