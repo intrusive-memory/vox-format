@@ -33,6 +33,19 @@ When adding a new model to an existing voice: **open** the existing `.vox`,
 `write()` it back. Do NOT create a new file. See `examples/multi-model/` and
 `examples/multi-language/`.
 
+**Language variants follow the exact same rule.** Language is *always optional*.
+A language-specific sample / clone prompt is just another keyed embedding in the
+**same** file, sitting alongside the default (language-neutral) one — never a
+separate file per language. The file holds **both** a default and any
+language-specific versions of the voice-source keys.
+
+- ✅ one `alice.vox` with keys `qwen3-tts-0.6b` (default), `…-es`, `…-fr-FR`
+- ❌ `alice.vox` + `alice-es.vox` (WRONG — same fragmentation, now by language)
+
+Readers resolve a `(model, language)` lookup with fallback: exact language →
+base-language (`fr-FR` → `fr`) → **default** → nil. The default is always used
+when no language-specific key exists, so a missing language never breaks a voice.
+
 ---
 
 ## Design Principles

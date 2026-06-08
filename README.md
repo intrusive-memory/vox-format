@@ -56,6 +56,11 @@ character.vox (ZIP archive)
 >
 > To add a model to an existing voice, open that `.vox`, add the embedding, and write
 > it back — don't create a new file.
+>
+> **Language works the same way, and is always optional.** A `.vox` holds a default
+> (language-neutral) sample/clone prompt and, optionally, language-specific versions —
+> all keyed in the *same* file (`…-es`, `…-fr-FR`), never `alice-es.vox`. When a
+> language-specific version isn't present, the default is used automatically.
 
 ---
 
