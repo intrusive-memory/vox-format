@@ -10,7 +10,7 @@ struct VoxCLI: ParsableCommand {
         VOX is an open, vendor-neutral file format for voice identities used in text-to-speech synthesis.
         This tool provides commands to inspect, validate, create, and extract .vox archives.
         """,
-        version: "0.1.0",
+        version: "0.4.1",
         subcommands: [
             InspectCommand.self,
             ValidateCommand.self,
