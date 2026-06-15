@@ -83,7 +83,7 @@ struct CreateCommand: ParsableCommand {
 
         // Create manifest
         let manifest = VoxManifest(
-            voxVersion: "0.1.0",
+            voxVersion: VoxFormat.currentVersion,
             id: id,
             created: created,
             voice: voice
@@ -94,10 +94,9 @@ struct CreateCommand: ParsableCommand {
 
         // Write the .vox file
         let outputURL = URL(fileURLWithPath: output)
-        let writer = VoxWriter()
 
         do {
-            try writer.write(voxFile, to: outputURL)
+            try voxFile.write(to: outputURL)
         } catch {
             print("❌ Failed to create .vox file")
             print("Error: \(error.localizedDescription)")
@@ -122,10 +121,15 @@ struct CreateCommand: ParsableCommand {
         // Validate the created file
         print()
         print("Validating created file...")
-        let reader = VoxReader()
-        let readBack = try reader.read(from: outputURL)
-        let validator = VoxValidator()
-        try validator.validate(readBack.manifest, strict: false)
+        let readBack = try VoxFile(contentsOf: outputURL)
+        let errors = readBack.validate().filter { $0.severity == .error }
+        if !errors.isEmpty {
+            print("❌ Validation failed:")
+            for issue in errors {
+                print("  \(issue)")
+            }
+            throw ExitCode.failure
+        }
         print("✅ Validation passed")
     }
 }

@@ -41,5 +41,10 @@ let package = Package(
             dependencies: ["VoxFormat"],
             path: "implementations/swift/Tests/VoxFormatTests"
         ),
+        .testTarget(
+            name: "VoxCLITests",
+            dependencies: ["VoxFormat", "vox"],
+            path: "Tests/VoxCLITests"
+        ),
     ]
 )

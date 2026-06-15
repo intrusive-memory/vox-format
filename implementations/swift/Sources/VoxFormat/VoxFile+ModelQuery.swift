@@ -1,5 +1,22 @@
 import Foundation
 
+// MARK: - Language model — storage tag vs. generation language
+//
+// Throughout this file, `language` is a **BCP 47 storage-slot selector**: a
+// `String` that keys which embedding/sample to read or write inside the bundle,
+// with a deliberate exact → base-language → default fallback chain (see
+// `languageCandidates(for:)`). It is intentionally engine-agnostic and
+// **preserves region subtags** (`es-MX` is distinct from `es`, `fr-FR` from
+// `fr`) so a single `.vox` can carry per-region voices.
+//
+// This is a different concept from a TTS engine's *generation* language (e.g.
+// `SwiftVoxAlta.TTSLanguage`), which collapses regional variants down to the
+// handful of languages a given model can actually condition on. VoxFormat does
+// NOT depend on, or convert to, any such type — doing so would erase the region
+// distinctions this storage layer exists to preserve, and would invert the
+// dependency graph (VoxFormat is a leaf). Consumers perform the
+// storage-tag → generation-language reduction at their own generation boundary.
+
 // MARK: - Model Query
 
 extension VoxFile {
