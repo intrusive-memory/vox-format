@@ -34,6 +34,17 @@ jobs:
         working-directory: implementations/swift
         run: swift build -c release
 
+      # Build the `vox` CLI from the ROOT package. The library job above only
+      # compiles implementations/swift, so a CLI that references a stale API
+      # (e.g. the removed VoxReader/VoxWriter/VoxValidator types) would pass CI
+      # yet fail `make release` — exactly how v0.4.0 shipped no binary. This
+      # step compiles Sources/vox and smoke-tests the entry point.
+      - name: Build vox CLI (root package)
+        run: swift build --product vox
+
+      - name: Run vox CLI integration tests (--help / --version)
+        run: swift test --filter VoxCLITests
+
       - name: Install ajv-cli
         run: npm install -g ajv-cli
 
