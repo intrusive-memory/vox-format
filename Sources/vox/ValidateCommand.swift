@@ -32,11 +32,10 @@ struct ValidateCommand: ParsableCommand {
         let fileURL = URL(fileURLWithPath: file)
 
         // Read the .vox file
-        let reader = VoxReader()
         let voxFile: VoxFile
 
         do {
-            voxFile = try reader.read(from: fileURL)
+            voxFile = try VoxFile(contentsOf: fileURL)
         } catch {
             print("❌ FAILED: \(fileURL.lastPathComponent)")
             print()
@@ -47,14 +46,17 @@ struct ValidateCommand: ParsableCommand {
             throw ExitCode.failure
         }
 
-        // Validate the manifest
-        let validator = VoxValidator()
-        do {
-            try validator.validate(voxFile.manifest, strict: strict)
-        } catch {
+        // Validate. `validate()` returns findings by severity; in permissive
+        // mode (default) only `.error` issues fail, while `--strict` also fails
+        // on `.warning` (e.g. declared files missing from the archive).
+        let issues = voxFile.validate()
+        let failures = issues.filter { strict ? $0.severity >= .warning : $0.severity >= .error }
+        if !failures.isEmpty {
             print("❌ VALIDATION FAILED: \(fileURL.lastPathComponent)")
             print()
-            print("Error: \(error.localizedDescription)")
+            for issue in failures {
+                print("  \(issue)")
+            }
             throw ExitCode.failure
         }
 

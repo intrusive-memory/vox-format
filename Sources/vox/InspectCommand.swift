@@ -26,8 +26,7 @@ struct InspectCommand: ParsableCommand {
         let fileURL = URL(fileURLWithPath: file)
 
         // Read the .vox file
-        let reader = VoxReader()
-        let voxFile = try reader.read(from: fileURL)
+        let voxFile = try VoxFile(contentsOf: fileURL)
         let manifest = voxFile.manifest
 
         // Print header
@@ -97,11 +96,13 @@ struct InspectCommand: ParsableCommand {
             }
             print()
 
-            // List actual audio data found in archive
-            if !voxFile.referenceAudio.isEmpty {
+            // List actual audio data found in the archive
+            let audioEntries = voxFile.entries(under: "reference/").sorted { $0.path < $1.path }
+            if !audioEntries.isEmpty {
                 print("  Found audio files:")
-                for (filename, data) in voxFile.referenceAudio.sorted(by: { $0.key < $1.key }) {
-                    print("    ✓ \(filename) (\(formatBytes(data.count)))")
+                for entry in audioEntries {
+                    let filename = String(entry.path.dropFirst("reference/".count))
+                    print("    ✓ \(filename) (\(formatBytes(entry.data.count)))")
                 }
                 print()
             }
@@ -192,18 +193,20 @@ struct InspectCommand: ParsableCommand {
         }
 
         // Raw embeddings (files in archive not covered by embedding entries)
-        if !voxFile.embeddings.isEmpty {
-            let entryFiles = Set(manifest.embeddingEntries?.values.map { entry -> String in
-                let prefix = "embeddings/"
-                return entry.file.hasPrefix(prefix) ? String(entry.file.dropFirst(prefix.count)) : entry.file
+        let embeddingEntriesInArchive = voxFile.entries(under: "embeddings/")
+        if !embeddingEntriesInArchive.isEmpty {
+            // Manifest embedding `file` values are archive-relative and start with
+            // "embeddings/" (normalize defensively in case a legacy file omits it).
+            let declaredPaths: Set<String> = Set(manifest.embeddingEntries?.values.map { entry in
+                entry.file.hasPrefix("embeddings/") ? entry.file : "embeddings/\(entry.file)"
             } ?? [])
-            let unmapped = voxFile.embeddings.keys.filter { !entryFiles.contains($0) }.sorted()
+            let unmapped = embeddingEntriesInArchive
+                .filter { !declaredPaths.contains($0.path) }
+                .sorted { $0.path < $1.path }
             if !unmapped.isEmpty {
                 print("📦 Raw Embeddings (no manifest entry)")
-                for key in unmapped {
-                    if let data = voxFile.embeddings[key] {
-                        print("  • embeddings/\(key) (\(formatBytes(data.count)))")
-                    }
+                for entry in unmapped {
+                    print("  • \(entry.path) (\(formatBytes(entry.data.count)))")
                 }
                 print()
             }
