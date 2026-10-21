@@ -82,7 +82,7 @@ def urllib_transport(method: str, url: str, headers: Mapping[str, str], body: by
 
 
 class GeminiVoicesClient:
-    """Minimal Gemini Voices API client (create / get / list / delete)."""
+    """Minimal Gemini Voices API client (create / get / list / delete / synthesize)."""
 
     def __init__(self, api_key: str | None = None, *, base_url: str = API_BASE,
                  transport: Transport | None = None, timeout: float = 180.0):
@@ -147,6 +147,23 @@ class GeminiVoicesClient:
 
     def delete_voice(self, voice_id: str) -> dict:
         return self._call("DELETE", self._voice_path(voice_id))
+
+    def synthesize(self, voice_id: str, text: str, *, style: str | None = None, model: str = MODEL) -> bytes:
+        """Render ``text`` with a stored voice via ``/interactions``; returns the audio bytes (WAV)."""
+        content: dict[str, Any] = {"type": "text", "text": text}
+        if style:
+            content["annotations"] = [{"type": "speech_metadata", "style": style}]
+        resp = self._call("POST", "/interactions", {
+            "model": model,
+            "input": [{"type": "user_input", "content": [content]}],
+            "response_format": {"type": "audio"},
+            "generation_config": {"speech_config": [{"voice": voice_id}]},
+        })
+        audio = [c for step in resp.get("steps", []) if step.get("type") == "model_output"
+                 for c in step.get("content", []) if c.get("type") == "audio" and c.get("data")]
+        if not audio:
+            raise GeminiError("synthesis returned no audio")
+        return base64.b64decode(audio[-1]["data"])
 
 
 # ----------------------------------------------------------------------------- adapter

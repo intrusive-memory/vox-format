@@ -7,7 +7,11 @@ import pytest
 
 from voxformat import VoxFile
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+# Inside vox-format this is the repo root; in the standalone package the spec's
+# examples/ and schemas/ are vendored under tests/fixtures/vox-format/.
+_IN_SPEC_REPO = Path(__file__).resolve().parents[3]
+REPO_ROOT = (_IN_SPEC_REPO if (_IN_SPEC_REPO / "schemas" / "manifest-v0.4.0.json").is_file()
+             else Path(__file__).resolve().parent / "fixtures" / "vox-format")
 EXAMPLES = REPO_ROOT / "examples"
 SCHEMAS = REPO_ROOT / "schemas"
 

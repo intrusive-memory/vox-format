@@ -52,6 +52,13 @@ class FakeAPI:
             if method == "DELETE":
                 del self.voices[vid]
                 return 200, b"{}"
+        if method == "POST" and path == "/interactions":
+            vid = payload["generation_config"]["speech_config"][0]["voice"]
+            if vid not in self.voices:
+                return 404, json.dumps({"error": {"code": 404, "message": f"voice {vid} not found"}}).encode()
+            audio = base64.b64encode(WAV + payload["input"][0]["content"][0]["text"].encode()).decode()
+            return 200, json.dumps({"steps": [{"type": "model_output",
+                                               "content": [{"type": "audio", "mime_type": "audio/wav", "data": audio}]}]}).encode()
         return 400, b'{"error": {"message": "bad request"}}'
 
 
@@ -82,12 +89,12 @@ def test_client_requires_key(monkeypatch):
 
 
 def test_client_requests(client, api):
-    created = client.create_voice("A warm narrator.", "granville-CLARK", gender="male", language_code="en-US")
+    created = client.create_voice("A warm narrator.", "example-NARRATOR", gender="male", language_code="en-US")
     method, url, headers, body = api.calls[-1]
     assert (method, url) == ("POST", "https://generativelanguage.googleapis.com/v1beta/voices")
     assert headers["x-goog-api-key"] == KEY and KEY not in url
     assert body == {"store": True, "voice": {"model": "gemini-3.8-flash-tts", "type": "prompted",
-                                             "display_name": "granville-CLARK", "language_code": "en-US",
+                                             "display_name": "example-NARRATOR", "language_code": "en-US",
                                              "prompted": {"input": "A warm narrator."}, "gender": "male"}}
     vid = created["id"]
     client.get_voice(vid)
@@ -199,7 +206,7 @@ def test_legacy_voice_json_layout_is_migrated(tmp_path, client):
     manifest["embeddings"] = {"google-gemini-3.8-flash-tts-voice-ref": {
         "model": "gemini-3.8-flash-tts", "engine": "google",
         "file": "embeddings/google/gemini-3.8-flash-tts/voice.json"}}
-    legacy = {"id": "voice_example_001", "type": "prompted", "display_name": "granville-OLD", "gender": "female",
+    legacy = {"id": "voice_example_001", "type": "prompted", "display_name": "example-OLD", "gender": "female",
               "language_code": "en-US", "prompt": "Old prompt.", "created": "2026-10-01T00:00:00Z"}
     p = tmp_path / "OLD.vox"
     with zipfile.ZipFile(p, "w") as zf:
@@ -245,3 +252,29 @@ def test_cli_gemini_without_key(monkeypatch, capsys, vox):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     assert main(["gemini", "list"]) == 1
     assert "GEMINI_API_KEY is not set" in capsys.readouterr().err
+
+
+def test_synthesize_uses_stored_voice_id(api, client, vox):
+    g.create_voice_for_vox(vox, client, prompt="A warm narrator.", display_name="example-NARRATOR")
+    vid = g.GeminiAdapter().read_extension(vox)["voice_id"]
+    audio = client.synthesize(vid, "Hello there.", style="dry")
+    assert audio == WAV + b"Hello there."
+    body = api.calls[-1][3]
+    assert body["generation_config"]["speech_config"] == [{"voice": vid}]
+    assert body["input"][0]["content"][0]["annotations"][0]["style"] == "dry"
+
+
+def test_synthesize_unknown_voice_raises(client):
+    with pytest.raises(g.GeminiAPIError) as e:
+        client.synthesize("voice_missing", "Hi")
+    assert e.value.status == 404
+
+
+def test_cli_synthesize(api, client, vox, tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr("voxformat.cli._gemini_client", lambda: client)
+    g.create_voice_for_vox(vox, client, prompt="A warm narrator.", display_name="example-NARRATOR")
+    vox.write()
+    out = tmp_path / "line.wav"
+    assert main(["gemini", "synthesize", str(vox.path), "Pick a lane.", "-o", str(out)]) == 0
+    assert out.read_bytes() == WAV + b"Pick a lane."
+    assert KEY not in capsys.readouterr().out

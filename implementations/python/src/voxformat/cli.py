@@ -289,6 +289,23 @@ def cmd_gemini(args: argparse.Namespace) -> int:
             vox.write()
         print(f"deleted {args.voice_id}" + (f"; removed from {args.vox}: {', '.join(removed)}" if removed else ""))
         return 0
+    if args.gemini_cmd == "synthesize":
+        ext = g.GeminiAdapter().read_extension(VoxFile.open(args.file))
+        if not ext or not ext.get("voice_id"):
+            print(f"error: {args.file} has no extensions.google.voice_id", file=sys.stderr)
+            return 1
+        text = Path(args.text_file).read_text(encoding="utf-8").strip() if args.text_file else args.text
+        if not text:
+            print("error: pass TEXT or --text-file", file=sys.stderr)
+            return 2
+        audio = client.synthesize(ext["voice_id"], text, style=args.style)
+        Path(args.output).write_bytes(audio)
+        print(f"{args.file}: synthesized {len(audio)}B with {ext['voice_id']} -> {args.output}")
+        if args.play:
+            import subprocess
+            from .player import find_player
+            subprocess.run([*find_player(), args.output], check=True)
+        return 0
     prompt = getattr(args, "prompt", None)
     if getattr(args, "prompt_file", None):
         prompt = Path(args.prompt_file).read_text(encoding="utf-8").strip()
@@ -450,6 +467,13 @@ def build_parser() -> argparse.ArgumentParser:
     s = gsub.add_parser("update", help="recreate the voice (no PATCH), write FILE, delete the old id")
     s.add_argument("file")
     voice_opts(s)
+    s = gsub.add_parser("synthesize", help="render TEXT with the voice stored in FILE")
+    s.add_argument("file")
+    s.add_argument("text", nargs="?")
+    s.add_argument("--text-file")
+    s.add_argument("--style", help="delivery style annotation, e.g. 'dry and tired'")
+    s.add_argument("-o", "--output", required=True, help="output .wav")
+    s.add_argument("--play", action="store_true", help="play the result after writing it")
     s = gsub.add_parser("delete", help="delete a server voice")
     s.add_argument("voice_id")
     s.add_argument("--vox", help="also remove extensions.google + sample from this .vox if it matches")
