@@ -1,3 +1,7 @@
+---
+type: project
+---
+
 # VOX Format - Shared Agent Context
 
 **Purpose:** This file contains shared context and decisions that apply to ALL AI agents working on the VOX format project. When you learn something important about the project, patterns, or decisions, update this file so all agents benefit from the knowledge.
@@ -101,6 +105,7 @@ Conforming readers MUST ignore unknown extensions.
   - `VoxMigrator` — Internal; auto-migrates v0.1.0 manifests on read.
   - `VoxError` — Typed error hierarchy for all failure cases.
   - `VoxIssue` — Validation finding with `severity` (info/warning/error), `message`, and optional `field`.
+- ✅ Python reference implementation (`implementations/python/`, package `voxformat`, CLI `voxpy`) — see [Python Implementation](#python-implementation-2026-10-20) below
 - ✅ CLI tool (`tools/vox-cli/`) — inspect, validate, create, extract commands
 - ✅ Example `.vox` files (`examples/`) — minimal, character, multi-engine, voice library
 - ✅ CI/CD — GitHub Actions with Swift tests + JSON Schema validation
@@ -121,6 +126,36 @@ Conforming readers MUST ignore unknown extensions.
 - `remove()` auto-removes corresponding manifest entries.
 - `validate()` returns `[VoxIssue]` instead of throwing, so callers can inspect all problems at once.
 - `init(contentsOf:)` auto-migrates old v0.1.0 manifests to current version.
+
+### Python Implementation (2026-10-20)
+
+**Decision:** Python tooling was removed at v0.4.0, when the project became Swift-only. It
+has been re-added at the user's request as `implementations/python/`, a **reference
+implementation that must track the Swift one**. Swift (`implementations/swift/Sources/VoxFormat`)
+remains the behavioural source of truth. Any change to Swift `VoxFile` semantics (auto-manifest,
+key derivation, the language fallback chain, `validate()` rules, the migrator) must be
+mirrored in Python, along with its tests.
+
+- Python 3.11+, stdlib-only core; `jsonschema` is an optional extra. Tests:
+  `cd implementations/python && python3 -m venv .venv && .venv/bin/pip install -e '.[dev]' && .venv/bin/python -m pytest`.
+  CI does not run them yet.
+- The `VoxFile` API mirrors Swift: `open()`/`write()` (atomic), `add()`/`remove()`/subscript,
+  the model and language queries, `validate()`, and `readiness`. The manifest is a plain dict,
+  so unknown fields and extensions survive a round-trip. Swift drops them.
+- The engine API (`voxformat.engines`, `voxformat.providers`) has three destinations:
+  local binaries go to `embeddings/<engine>/<slug>/[<lang>/]<name>`; engine samples go to
+  `…/sample-audio.wav` (language-neutral by default); server-side voice handles go to
+  `extensions.<provider>`. Never store a handle as a fake embedding. Built-in adapters:
+  Gemini 3.8 Flash TTS (`extensions.google` plus `embeddings/google/gemini-3.8-flash-tts/sample-audio.wav`,
+  key `google-gemini-3.8-flash-tts-sample-audio`), ElevenLabs, OpenAI, and Apple.
+- Validator severity follows Swift. **Errors** are problems Swift rejects: `validate()`
+  errors and decode failures (missing required key, wrong type, bad `created`). Constraints
+  only the schema enforces (`additionalProperties`, uppercase UUID, enums Swift tolerates)
+  are **warnings**; `voxpy validate --strict` fails on them.
+- **Swift pitfall found:** Swift `AnyCodable` cannot decode JSON `null`, so a `.vox` with
+  `null` anywhere inside `extensions` fails to open in Swift. Python writers drop `None`,
+  and the validator warns about `null`.
+- The differences from Swift are listed in `implementations/python/README.md` ("Differences from Swift").
 
 ### Integration Roadmap
 
@@ -324,4 +359,4 @@ When updating this file:
 
 ---
 
-**Last Updated:** 2026-02-23
+**Last Updated:** 2026-10-20
